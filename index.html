@@ -2,19 +2,27 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>우리 둘만의 가계부</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+      -webkit-tap-highlight-color: transparent; 
+    }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 아이폰 하단 홈 바(Safe Area) 완벽 대응 */
+    .safe-bottom-nav {
+      padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
+    }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 pb-24">
+<body class="bg-slate-100 text-slate-800 pb-32">
 
   <!-- 상단 네비게이션 헤더 -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
@@ -40,7 +48,7 @@
       <!-- 캘린더 메인 카드 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         
-        <!-- 연·월 선택 헤더 (터치 시 연월 팝업 오픈) -->
+        <!-- 연·월 선택 헤더 -->
         <div class="flex justify-between items-center px-4 py-3 border-b border-slate-100">
           <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&lt;</button>
           <button onclick="openMonthPickerModal()" class="flex items-center gap-1.5 font-bold text-base text-slate-800 hover:text-blue-600 transition">
@@ -50,7 +58,7 @@
           <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&gt;</button>
         </div>
 
-        <!-- 편한가계부 스타일: 월간 수입 / 지출 / 합계 요약 바 -->
+        <!-- 월간 수입 / 지출 / 합계 요약 바 -->
         <div class="grid grid-cols-3 text-center py-2.5 bg-slate-50 border-b border-slate-200 text-xs">
           <div>
             <span class="text-[10px] text-slate-400 block mb-0.5 font-medium">수입</span>
@@ -77,15 +85,19 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 (절대 잘리지 않는 압축형 레이아웃) -->
+        <!-- 날짜 그리드 (세로 크기 1.2배 확장: min-h-[78px]) -->
         <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
       </div>
 
-      <!-- 선택된 날짜 상세 내역 목록 -->
+      <!-- 선택된 날짜 상세 내역 목록 (우측 3단 정렬 헤더 적용) -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div class="flex justify-between items-center mb-3">
-          <h3 id="selectedDateTitle" class="text-sm font-bold text-slate-700">오늘의 내역</h3>
-          <span id="selectedDateSummary" class="text-xs text-slate-500"></span>
+        <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-2.5">
+          <div>
+            <h3 id="selectedDateTitle" class="text-sm font-bold text-slate-800">오늘의 내역</h3>
+            <span id="selectedDateCount" class="text-[11px] text-slate-400 mt-0.5 block">0건</span>
+          </div>
+          <!-- 우측 수입/지출/합계 정렬 영역 -->
+          <div id="selectedDateSummary" class="text-right text-xs space-y-0.5"></div>
         </div>
         <div id="selectedDateList" class="divide-y divide-slate-100 text-sm space-y-1"></div>
       </div>
@@ -124,7 +136,6 @@
         </div>
       </div>
 
-      <!-- 지출 카테고리별 요약 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <div class="flex justify-between items-center mb-3">
           <h3 class="text-sm font-bold text-slate-800">지출 카테고리별 합계</h3>
@@ -195,30 +206,29 @@
 
   </main>
 
-  <!-- 하단 고정 탭 바 -->
-  <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-2 flex justify-between items-center max-w-xl mx-auto z-20">
-    <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center text-blue-600">
-      <span class="text-base">📅</span>
-      <span class="text-[10px] font-medium mt-0.5">달력</span>
+  <!-- 하단 고정 탭 바 (아이폰 Safe Area 대응으로 위쪽으로 키움) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-8 pt-3 safe-bottom-nav flex justify-between items-center max-w-xl mx-auto z-20 shadow-lg">
+    <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center text-blue-600 transition">
+      <span class="text-lg">📅</span>
+      <span class="text-[11px] font-semibold mt-1">달력</span>
     </button>
-    <button onclick="switchTab('list')" id="nav-list" class="flex flex-col items-center text-slate-400">
-      <span class="text-base">📝</span>
-      <span class="text-[10px] font-medium mt-0.5">내역</span>
+    <button onclick="switchTab('list')" id="nav-list" class="flex flex-col items-center text-slate-400 transition">
+      <span class="text-lg">📝</span>
+      <span class="text-[11px] font-semibold mt-1">내역</span>
     </button>
-    <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center text-slate-400">
-      <span class="text-base">📊</span>
-      <span class="text-[10px] font-medium mt-0.5">통계</span>
+    <button onclick="switchTab('stats')" id="nav-stats" class="flex flex-col items-center text-slate-400 transition">
+      <span class="text-lg">📊</span>
+      <span class="text-[11px] font-semibold mt-1">통계</span>
     </button>
-    <button onclick="switchTab('assets')" id="nav-assets" class="flex flex-col items-center text-slate-400">
-      <span class="text-base">💳</span>
-      <span class="text-[10px] font-medium mt-0.5">자산</span>
+    <button onclick="switchTab('assets')" id="nav-assets" class="flex flex-col items-center text-slate-400 transition">
+      <span class="text-lg">💳</span>
+      <span class="text-[11px] font-semibold mt-1">자산</span>
     </button>
   </nav>
 
-  <!-- [신규 기능] 연·월 고속 이동 팝업 픽커 모달 (사진 3 완벽 구현) -->
+  <!-- 연·월 고속 이동 팝업 픽커 모달 -->
   <div id="monthPickerModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 text-white w-full max-w-xs rounded-2xl p-5 shadow-2xl space-y-4">
-      <!-- 헤더 -->
       <div class="flex justify-between items-center pb-2 border-b border-slate-800 text-xs">
         <span class="text-slate-400 font-medium">날짜 선택</span>
         <div class="flex items-center gap-3">
@@ -227,14 +237,12 @@
         </div>
       </div>
 
-      <!-- 연도 전환 -->
       <div class="flex justify-between items-center px-4 py-1">
         <button onclick="changePickerYear(-1)" class="p-2 text-slate-400 hover:text-white font-bold text-lg">&lt;</button>
         <span id="pickerYearTitle" class="text-base font-bold text-white tracking-wide">2026년</span>
         <button onclick="changePickerYear(1)" class="p-2 text-slate-400 hover:text-white font-bold text-lg">&gt;</button>
       </div>
 
-      <!-- 1월 ~ 12월 그리드 버튼 -->
       <div class="grid grid-cols-4 gap-2 pt-1" id="pickerMonthGrid"></div>
     </div>
   </div>
@@ -482,7 +490,6 @@
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-    // --- [연·월 팝업 픽커 로직] ---
     function openMonthPickerModal() {
       state.pickerYear = state.currentDate.getFullYear();
       renderMonthPicker();
@@ -527,8 +534,6 @@
       renderStats();
     }
 
-    // --- [편한가계부 스타일 숫자 축약 포맷터] ---
-    // 1만 원 이상은 133만, 50만, 83.3만 등으로 압축하여 셀 안에서 절대 잘리지 않음
     function formatCellAmount(num) {
       const abs = Math.abs(num);
       if (abs >= 100000000) {
@@ -634,7 +639,7 @@
       renderStats();
     }
 
-    // --- [개선된 달력 렌더링] ---
+    // 달력 렌더링 (세로 높이 78px로 1.2배 확장)
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -645,13 +650,11 @@
       const grid = document.getElementById('calendarGrid');
       grid.innerHTML = '';
 
-      // 월간 총 수입, 총 지출 집계
       let mIncTotal = 0;
       let mExpTotal = 0;
 
-      // 이전 달 빈 칸 채우기
       for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div class="min-h-[64px] bg-slate-50/50"></div>`;
+        grid.innerHTML += `<div class="min-h-[78px] bg-slate-50/50"></div>`;
       }
 
       for (let day = 1; day <= totalDays; day++) {
@@ -673,13 +676,12 @@
         const isSelected = state.selectedDate === dateStr;
         const dayOfWeek = new Date(year, month, day).getDay();
 
-        // 날짜 텍스트 색상
         let dateColor = 'text-slate-700';
         if (dayOfWeek === 0) dateColor = 'text-rose-500';
         if (dayOfWeek === 6) dateColor = 'text-blue-500';
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[64px] p-1 flex flex-col justify-between cursor-pointer transition select-none ${
+        cell.className = `min-h-[78px] p-1.5 flex flex-col justify-between cursor-pointer transition select-none ${
           isSelected ? 'bg-blue-50/80 ring-2 ring-inset ring-blue-500' : 'bg-white hover:bg-slate-50'
         }`;
         cell.onclick = () => {
@@ -689,7 +691,6 @@
           renderSelectedDayList();
         };
 
-        // 수입, 지출, 합계 라인 (편한가계부 컴팩트 텍스트 구조)
         let txHtml = '';
         if (hasTx) {
           const netSign = net > 0 ? '+' : (net < 0 ? '-' : '');
@@ -713,7 +714,6 @@
         grid.appendChild(cell);
       }
 
-      // 상단 월 요약 바 수치 갱신
       document.getElementById('monthSumIncome').innerText = mIncTotal.toLocaleString() + '원';
       document.getElementById('monthSumExpense').innerText = mExpTotal.toLocaleString() + '원';
       const mNet = mIncTotal - mExpTotal;
@@ -722,20 +722,25 @@
       mNetEl.className = `text-xs font-bold ${mNet > 0 ? 'text-blue-600' : (mNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
     }
 
-    // 선택 날짜 상세 리스트
+    // 선택 날짜 상세 리스트 (우측 3단 깔끔 정렬 구현)
     function renderSelectedDayList() {
       document.getElementById('selectedDateTitle').innerText = `${state.selectedDate} 내역`;
       const txs = state.transactions.filter(t => t.date === state.selectedDate);
       const listEl = document.getElementById('selectedDateList');
+      const summaryEl = document.getElementById('selectedDateSummary');
+      const countEl = document.getElementById('selectedDateCount');
+
+      countEl.innerText = `총 ${txs.length}건`;
 
       if (txs.length === 0) {
         listEl.innerHTML = `<p class="text-center py-6 text-slate-400 text-xs">기록된 거래가 없습니다.</p>`;
-        document.getElementById('selectedDateSummary').innerText = '';
+        summaryEl.innerHTML = '';
         return;
       }
 
       let expTotal = 0;
       let incTotal = 0;
+
       listEl.innerHTML = txs.map(t => {
         const amt = Number(t.amount);
         let badge = '';
@@ -779,10 +784,16 @@
 
       const netSum = incTotal - expTotal;
       const netSign = netSum > 0 ? '+' : '';
-      document.getElementById('selectedDateSummary').innerText = `수입 +${incTotal.toLocaleString()} · 지출 -${expTotal.toLocaleString()} (합계 ${netSign}${netSum.toLocaleString()}원)`;
+      const netColor = netSum > 0 ? 'text-blue-600' : (netSum < 0 ? 'text-rose-600' : 'text-slate-800');
+
+      // 우측 정렬 수입, 지출, 합계 표시
+      summaryEl.innerHTML = `
+        ${incTotal > 0 ? `<div class="text-slate-500 font-medium">수입 <span class="font-bold text-blue-600">+${incTotal.toLocaleString()}원</span></div>` : ''}
+        ${expTotal > 0 ? `<div class="text-slate-500 font-medium">지출 <span class="font-bold text-rose-600">-${expTotal.toLocaleString()}원</span></div>` : ''}
+        <div class="text-slate-600 font-semibold border-t border-slate-100 pt-0.5">합계 <span class="font-extrabold ${netColor}">${netSign}${netSum.toLocaleString()}원</span></div>
+      `;
     }
 
-    // 내역 탭 리스트
     function renderListView() {
       const typeFilter = document.getElementById('listTypeFilter').value;
       let filtered = [...state.transactions];
@@ -822,7 +833,6 @@
       }).join('');
     }
 
-    // 통계 탭
     function renderStats() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -872,7 +882,6 @@
       }
     }
 
-    // 자산 탭
     function renderAssets() {
       const balances = calculateAssetBalances();
       let total = 0;
@@ -939,7 +948,6 @@
       });
     }
 
-    // 설정 탭
     function renderSettings() {
       const expList = document.getElementById('settingsExpenseCatList');
       if (expList) {
@@ -976,7 +984,6 @@
       }
     }
 
-    // 액션 시트 모달 열기
     function openTxActionModal(id) {
       const tx = state.transactions.find(t => t.id === id);
       if (!tx) return;
