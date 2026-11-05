@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>우리 둘만의 가계부</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js 라이브러리 추가 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -16,7 +18,6 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     
-    /* 아이폰 하단 홈 바(Safe Area) 완벽 대응 */
     .safe-bottom-nav {
       padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 1.5rem));
     }
@@ -24,15 +25,22 @@
 </head>
 <body class="bg-slate-100 text-slate-800 pb-32">
 
-  <!-- 상단 네비게이션 헤더 -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
-    <div class="flex items-center gap-2">
-      <h1 class="text-lg font-bold text-slate-900">가계부</h1>
-      <span id="syncStatusBadge" class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">동기화 중</span>
+  <!-- 상단 공통 네비게이션 헤더 (모든 탭에서 연·월 즉시 선택 및 동기화) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-2.5 flex justify-between items-center shadow-sm">
+    <div class="flex items-center gap-1.5">
+      <h1 class="text-base font-bold text-slate-900">가계부</h1>
+      <span id="syncStatusBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">동기화 중</span>
     </div>
-    <div class="flex items-center gap-2">
-      <button onclick="openNewTxModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold shadow-sm transition">
-        + 내역 추가
+
+    <!-- 중앙 공통 연·월 전환 버튼 (터치 시 연월 픽커 오픈) -->
+    <button onclick="openMonthPickerModal()" class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full font-bold text-xs text-slate-800 transition">
+      <span id="headerMonthTitle">2026년 11월</span>
+      <span class="text-[9px] text-slate-400">▼</span>
+    </button>
+
+    <div class="flex items-center gap-1.5">
+      <button onclick="openNewTxModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold shadow-sm transition">
+        + 추가
       </button>
       <button onclick="switchTab('settings')" class="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">
         ⚙️
@@ -45,21 +53,17 @@
 
     <!-- 1. 달력 탭 -->
     <section id="tab-calendar" class="space-y-3">
-      <!-- 캘린더 메인 카드 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         
-        <!-- 연·월 선택 헤더 -->
-        <div class="flex justify-between items-center px-4 py-3 border-b border-slate-100">
-          <button onclick="changeMonth(-1)" class="p-2 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&lt;</button>
-          <button onclick="openMonthPickerModal()" class="flex items-center gap-1.5 font-bold text-base text-slate-800 hover:text-blue-600 transition">
-            <span id="calendarTitle">2026년 11월</span>
-            <span class="text-xs text-slate-400">▼</span>
-          </button>
-          <button onclick="changeMonth(1)" class="p-2 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&gt;</button>
+        <!-- 달력 연월 좌우 전환 바 -->
+        <div class="flex justify-between items-center px-4 py-2.5 border-b border-slate-100">
+          <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&lt;</button>
+          <span class="font-bold text-sm text-slate-800" id="calendarSectionTitle">2026년 11월</span>
+          <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&gt;</button>
         </div>
 
-        <!-- 월간 수입 / 지출 / 합계 요약 바 -->
-        <div class="grid grid-cols-3 text-center py-2.5 bg-slate-50 border-b border-slate-200 text-xs">
+        <!-- 월간 종합 요약 바 -->
+        <div class="grid grid-cols-3 text-center py-2 bg-slate-50 border-b border-slate-200 text-xs">
           <div>
             <span class="text-[10px] text-slate-400 block mb-0.5 font-medium">수입</span>
             <span class="text-xs font-bold text-blue-600" id="monthSumIncome">0</span>
@@ -85,63 +89,113 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 (세로 크기 1.2배 확장: min-h-[78px]) -->
+        <!-- 날짜 그리드 (세로 높이 78px) -->
         <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
       </div>
 
-      <!-- 선택된 날짜 상세 내역 목록 (우측 3단 정렬 헤더 적용) -->
+      <!-- 선택된 날짜 상세 내역 목록 (우측 3단 깔끔 정렬) -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-2.5">
           <div>
             <h3 id="selectedDateTitle" class="text-sm font-bold text-slate-800">오늘의 내역</h3>
             <span id="selectedDateCount" class="text-[11px] text-slate-400 mt-0.5 block">0건</span>
           </div>
-          <!-- 우측 수입/지출/합계 정렬 영역 -->
           <div id="selectedDateSummary" class="text-right text-xs space-y-0.5"></div>
         </div>
         <div id="selectedDateList" class="divide-y divide-slate-100 text-sm space-y-1"></div>
       </div>
     </section>
 
-    <!-- 2. 내역 탭 -->
+    <!-- 2. 내역 탭 (선택된 연·월 동기화 표시) -->
     <section id="tab-list" class="space-y-3 hidden">
-      <div class="flex gap-2">
-        <select id="listTypeFilter" onchange="renderListView()" class="bg-white border border-slate-300 rounded-lg text-xs px-3 py-2 w-full">
-          <option value="ALL">전체 내역 (수입/지출/이체)</option>
-          <option value="expense">지출만</option>
-          <option value="income">수입만</option>
-          <option value="transfer">이체만</option>
-        </select>
+      <!-- 월 전환 & 필터 카드 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 space-y-2.5">
+        <div class="flex justify-between items-center px-1">
+          <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&lt;</button>
+          <button onclick="openMonthPickerModal()" class="text-sm font-bold text-slate-800 hover:text-blue-600 flex items-center gap-1">
+            <span id="listMonthTitle">2026년 11월 내역</span>
+            <span class="text-[10px] text-slate-400">▼</span>
+          </button>
+          <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&gt;</button>
+        </div>
+        
+        <div class="flex gap-2">
+          <select id="listTypeFilter" onchange="renderListView()" class="bg-slate-50 border border-slate-200 rounded-lg text-xs px-3 py-2 w-full">
+            <option value="ALL">전체 유형 (수입/지출/이체)</option>
+            <option value="expense">지출만</option>
+            <option value="income">수입만</option>
+            <option value="transfer">이체만</option>
+          </select>
+        </div>
       </div>
+
       <div id="fullTransactionList" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
-    <!-- 3. 통계 탭 -->
-    <section id="tab-stats" class="space-y-4 hidden">
+    <!-- 3. 통계 탭 (자산별 연·월·일 추이 그래프 & 토글) -->
+    <section id="tab-stats" class="space-y-3 hidden">
+      <!-- 요약 수치 카드 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h3 class="text-xs font-semibold text-slate-400 mb-2" id="statsMonthLabel">이번 달 현황</h3>
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="text-xs font-semibold text-slate-400" id="statsMonthLabel">2026년 11월 요약</h3>
+          <button onclick="openMonthPickerModal()" class="text-xs text-blue-600 font-semibold hover:underline">기준월 변경</button>
+        </div>
         <div class="grid grid-cols-3 gap-2 text-center">
           <div class="bg-blue-50 p-2.5 rounded-xl">
             <span class="text-xs text-blue-600 block mb-0.5 font-medium">수입</span>
-            <span class="text-sm font-bold text-blue-700" id="statsTotalIncome">0원</span>
+            <span class="text-xs sm:text-sm font-bold text-blue-700" id="statsTotalIncome">0원</span>
           </div>
           <div class="bg-rose-50 p-2.5 rounded-xl">
             <span class="text-xs text-rose-600 block mb-0.5 font-medium">지출</span>
-            <span class="text-sm font-bold text-rose-700" id="statsTotalExpense">0원</span>
+            <span class="text-xs sm:text-sm font-bold text-rose-700" id="statsTotalExpense">0원</span>
           </div>
           <div class="bg-emerald-50 p-2.5 rounded-xl">
             <span class="text-xs text-emerald-600 block mb-0.5 font-medium">순저축</span>
-            <span class="text-sm font-bold text-emerald-700" id="statsNetSavings">0원</span>
+            <span class="text-xs sm:text-sm font-bold text-emerald-700" id="statsNetSavings">0원</span>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div class="flex justify-between items-center mb-3">
-          <h3 class="text-sm font-bold text-slate-800">지출 카테고리별 합계</h3>
-          <span class="text-xs text-slate-400" id="statsExpenseCount">0건</span>
+      <!-- 인터랙티브 그래프 카드 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3.5">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 pb-2 border-b border-slate-100">
+          <div>
+            <h3 class="text-sm font-bold text-slate-800">자산 흐름 분석 그래프</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5" id="chartSubtitleInfo">선택된 자산의 기간별 추이</p>
+          </div>
+          
+          <!-- 주기 선택 (일별 / 월별 / 연별) -->
+          <div class="inline-flex rounded-xl bg-slate-100 p-1 self-start sm:self-auto text-xs font-semibold">
+            <button onclick="setChartPeriod('daily')" id="btnPeriodDaily" class="px-2.5 py-1 rounded-lg bg-white text-slate-800 shadow-sm transition">일별</button>
+            <button onclick="setChartPeriod('monthly')" id="btnPeriodMonthly" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition">월별</button>
+            <button onclick="setChartPeriod('yearly')" id="btnPeriodYearly" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition">연별</button>
+          </div>
         </div>
-        <div id="categoryStatsList" class="space-y-3"></div>
+
+        <!-- 자산 선택 드롭다운 -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-slate-500 font-medium whitespace-nowrap">분석 자산:</label>
+          <select id="chartAssetSelect" onchange="renderStatsChart()" class="bg-slate-50 border border-slate-200 rounded-lg text-xs px-2.5 py-1.5 flex-1 font-semibold text-slate-700"></select>
+        </div>
+
+        <!-- 지표 ON/OFF 토글 알약 버튼 -->
+        <div class="flex items-center gap-1.5 pt-1">
+          <span class="text-[11px] text-slate-400 mr-1 font-medium">표시 항목:</span>
+          <button onclick="toggleChartDataset('income')" id="toggleBtnIncome" class="px-2.5 py-1 rounded-full text-[11px] font-bold border border-blue-500 bg-blue-50 text-blue-600 transition">
+            ✓ 수입
+          </button>
+          <button onclick="toggleChartDataset('expense')" id="toggleBtnExpense" class="px-2.5 py-1 rounded-full text-[11px] font-bold border border-rose-500 bg-rose-50 text-rose-600 transition">
+            ✓ 지출
+          </button>
+          <button onclick="toggleChartDataset('balance')" id="toggleBtnBalance" class="px-2.5 py-1 rounded-full text-[11px] font-bold border border-emerald-500 bg-emerald-50 text-emerald-600 transition">
+            ✓ 자산 잔액
+          </button>
+        </div>
+
+        <!-- 캔버스 차트 영역 -->
+        <div class="relative w-full h-64 pt-2">
+          <canvas id="financeChart"></canvas>
+        </div>
       </div>
     </section>
 
@@ -206,7 +260,7 @@
 
   </main>
 
-  <!-- 하단 고정 탭 바 (아이폰 Safe Area 대응으로 위쪽으로 키움) -->
+  <!-- 하단 고정 탭 바 -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-8 pt-3 safe-bottom-nav flex justify-between items-center max-w-xl mx-auto z-20 shadow-lg">
     <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center text-blue-600 transition">
       <span class="text-lg">📅</span>
@@ -307,7 +361,7 @@
     </div>
   </div>
 
-  <!-- 거래 항목 액션 시트 모달 (수정 / 복사 / 삭제) -->
+  <!-- 거래 관리 팝업 모달 -->
   <div id="actionModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-2xl p-5 space-y-3">
       <div class="text-center pb-2 border-b border-slate-100">
@@ -396,6 +450,9 @@
       transactions: JSON.parse(localStorage.getItem('budget_txs')) || [],
       selectedTxForAction: null,
       pickerYear: new Date().getFullYear(),
+      chartPeriod: 'daily', // 'daily', 'monthly', 'yearly'
+      chartVisibility: { income: true, expense: true, balance: true },
+      chartInstance: null,
       isFirebaseReady: false,
       db: null
     };
@@ -482,7 +539,10 @@
       });
       if (tabName === 'calendar') renderCalendar();
       if (tabName === 'list') renderListView();
-      if (tabName === 'stats') renderStats();
+      if (tabName === 'stats') {
+        renderStatsSummary();
+        renderStatsChart();
+      }
       if (tabName === 'assets') renderAssets();
       if (tabName === 'settings') renderSettings();
     }
@@ -490,6 +550,7 @@
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 
+    // --- [연·월 팝업 픽커] ---
     function openMonthPickerModal() {
       state.pickerYear = state.currentDate.getFullYear();
       renderMonthPicker();
@@ -519,8 +580,7 @@
         btn.onclick = () => {
           state.currentDate = new Date(state.pickerYear, m, 1);
           closeModal('monthPickerModal');
-          renderCalendar();
-          renderStats();
+          renderAll();
         };
         grid.appendChild(btn);
       }
@@ -530,8 +590,12 @@
       const now = new Date();
       state.currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
       closeModal('monthPickerModal');
-      renderCalendar();
-      renderStats();
+      renderAll();
+    }
+
+    function changeMonth(delta) {
+      state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+      renderAll();
     }
 
     function formatCellAmount(num) {
@@ -603,6 +667,14 @@
       document.getElementById('txAsset').innerHTML = opts;
       document.getElementById('txFromAsset').innerHTML = opts;
       document.getElementById('txToAsset').innerHTML = opts;
+
+      // 통계 탭용 자산 선택 옵션 (전체 자산 포함)
+      const chartSelect = document.getElementById('chartAssetSelect');
+      if (chartSelect) {
+        chartSelect.innerHTML = `<option value="ALL">전체 자산 (순자산 합산)</option>` + 
+          state.assets.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+      }
+
       populateCategories(state.currentType);
     }
 
@@ -624,26 +696,31 @@
       return balances;
     }
 
+    // 모든 탭 일괄 갱신 (헤더 타이틀 포함)
     function renderAll() {
+      const year = state.currentDate.getFullYear();
+      const month = state.currentDate.getMonth() + 1;
+      const formattedTitle = `${year}년 ${month}월`;
+
+      // 헤더 및 각 탭 공통 타이틀 동기화
+      document.getElementById('headerMonthTitle').innerText = formattedTitle;
+      document.getElementById('calendarSectionTitle').innerText = formattedTitle;
+      document.getElementById('listMonthTitle').innerText = `${formattedTitle} 내역`;
+      document.getElementById('statsMonthLabel').innerText = `${formattedTitle} 요약`;
+
       renderCalendar();
       renderSelectedDayList();
       renderListView();
-      renderStats();
+      renderStatsSummary();
+      renderStatsChart();
       renderAssets();
       renderSettings();
     }
 
-    function changeMonth(delta) {
-      state.currentDate.setMonth(state.currentDate.getMonth() + delta);
-      renderCalendar();
-      renderStats();
-    }
-
-    // 달력 렌더링 (세로 높이 78px로 1.2배 확장)
+    // 1. 달력 렌더링
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
-      document.getElementById('calendarTitle').innerText = `${year}년 ${month + 1}월`;
 
       const firstDay = new Date(year, month, 1).getDay();
       const totalDays = new Date(year, month + 1, 0).getDate();
@@ -722,7 +799,7 @@
       mNetEl.className = `text-xs font-bold ${mNet > 0 ? 'text-blue-600' : (mNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
     }
 
-    // 선택 날짜 상세 리스트 (우측 3단 깔끔 정렬 구현)
+    // 선택 날짜 상세 리스트
     function renderSelectedDayList() {
       document.getElementById('selectedDateTitle').innerText = `${state.selectedDate} 내역`;
       const txs = state.transactions.filter(t => t.date === state.selectedDate);
@@ -786,7 +863,6 @@
       const netSign = netSum > 0 ? '+' : '';
       const netColor = netSum > 0 ? 'text-blue-600' : (netSum < 0 ? 'text-rose-600' : 'text-slate-800');
 
-      // 우측 정렬 수입, 지출, 합계 표시
       summaryEl.innerHTML = `
         ${incTotal > 0 ? `<div class="text-slate-500 font-medium">수입 <span class="font-bold text-blue-600">+${incTotal.toLocaleString()}원</span></div>` : ''}
         ${expTotal > 0 ? `<div class="text-slate-500 font-medium">지출 <span class="font-bold text-rose-600">-${expTotal.toLocaleString()}원</span></div>` : ''}
@@ -794,16 +870,21 @@
       `;
     }
 
+    // 2. 내역 탭 (선택된 연·월 내역만 필터링)
     function renderListView() {
+      const year = state.currentDate.getFullYear();
+      const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
       const typeFilter = document.getElementById('listTypeFilter').value;
-      let filtered = [...state.transactions];
+
+      // 해당 연/월에 속하는 거래만 추출
+      let filtered = state.transactions.filter(t => t.date.startsWith(monthStr));
       if (typeFilter !== 'ALL') filtered = filtered.filter(t => t.type === typeFilter);
 
       filtered.sort((a, b) => b.date.localeCompare(a.date));
 
       const container = document.getElementById('fullTransactionList');
       if (filtered.length === 0) {
-        container.innerHTML = `<p class="p-6 text-center text-xs text-slate-400">내역이 없습니다.</p>`;
+        container.innerHTML = `<p class="p-8 text-center text-xs text-slate-400">${year}년 ${state.currentDate.getMonth() + 1}월 내역이 없습니다.</p>`;
         return;
       }
 
@@ -819,7 +900,7 @@
           <div onclick="openTxActionModal('${t.id}')" class="p-3 hover:bg-slate-50 active:bg-slate-100 cursor-pointer flex justify-between items-center text-xs transition">
             <div>
               <div class="flex items-center gap-1.5 mb-0.5">
-                <span class="text-slate-400 text-[10px]">${t.date}</span>
+                <span class="text-slate-400 text-[10px] font-medium">${t.date.slice(5)}</span>
                 <span class="font-semibold text-slate-700">${t.description}</span>
               </div>
               <div class="text-[11px] text-slate-400">${info}</div>
@@ -833,55 +914,294 @@
       }).join('');
     }
 
-    function renderStats() {
+    // 3. 통계 탭 요약 수치
+    function renderStatsSummary() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('statsMonthLabel').innerText = `${year}년 ${state.currentDate.getMonth() + 1}월 현황`;
-
       const monthlyTxs = state.transactions.filter(t => t.date.startsWith(monthStr));
 
       let inc = 0;
       let exp = 0;
-      const catTotals = {};
-
       monthlyTxs.forEach(t => {
         const amt = Number(t.amount);
         if (t.type === 'income') inc += amt;
-        if (t.type === 'expense') {
-          exp += amt;
-          const cat = t.category || '기타';
-          catTotals[cat] = (catTotals[cat] || 0) + amt;
-        }
+        if (t.type === 'expense') exp += amt;
       });
 
       document.getElementById('statsTotalIncome').innerText = `${inc.toLocaleString()}원`;
       document.getElementById('statsTotalExpense').innerText = `${exp.toLocaleString()}원`;
       document.getElementById('statsNetSavings').innerText = `${(inc - exp).toLocaleString()}원`;
-
-      const catListEl = document.getElementById('categoryStatsList');
-      const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
-      document.getElementById('statsExpenseCount').innerText = `총 ${sortedCats.length}개 분류`;
-
-      if (sortedCats.length === 0) {
-        catListEl.innerHTML = `<p class="text-center py-4 text-xs text-slate-400">지출 내역이 없습니다.</p>`;
-      } else {
-        catListEl.innerHTML = sortedCats.map(([cat, amount]) => {
-          const pct = exp > 0 ? ((amount / exp) * 100).toFixed(1) : 0;
-          return `
-            <div class="space-y-1">
-              <div class="flex justify-between text-xs">
-                <span class="font-medium text-slate-700">${cat}</span>
-                <span class="font-bold text-slate-900">${amount.toLocaleString()}원 (${pct}%)</span>
-              </div>
-              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div class="bg-rose-500 h-2 rounded-full" style="width: ${pct}%"></div>
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
     }
 
+    // --- [통계 인터랙티브 차트 엔진 (Chart.js)] ---
+    function setChartPeriod(period) {
+      state.chartPeriod = period;
+      ['daily', 'monthly', 'yearly'].forEach(p => {
+        const btn = document.getElementById(`btnPeriod${p.charAt(0).toUpperCase() + p.slice(1)}`);
+        if (btn) {
+          btn.className = (p === period)
+            ? 'px-2.5 py-1 rounded-lg bg-white text-slate-800 shadow-sm transition'
+            : 'px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-800 transition';
+        }
+      });
+      renderStatsChart();
+    }
+
+    function toggleChartDataset(type) {
+      state.chartVisibility[type] = !state.chartVisibility[type];
+      const isVisible = state.chartVisibility[type];
+      
+      const theme = {
+        income: { active: 'border-blue-500 bg-blue-50 text-blue-600', inactive: 'border-slate-200 bg-slate-50 text-slate-400' },
+        expense: { active: 'border-rose-500 bg-rose-50 text-rose-600', inactive: 'border-slate-200 bg-slate-50 text-slate-400' },
+        balance: { active: 'border-emerald-500 bg-emerald-50 text-emerald-600', inactive: 'border-slate-200 bg-slate-50 text-slate-400' }
+      };
+
+      const btn = document.getElementById(`toggleBtn${type.charAt(0).toUpperCase() + type.slice(1)}`);
+      const label = type === 'income' ? '수입' : (type === 'expense' ? '지출' : '자산 잔액');
+      btn.className = `px-2.5 py-1 rounded-full text-[11px] font-bold border transition ${isVisible ? theme[type].active : theme[type].inactive}`;
+      btn.innerText = `${isVisible ? '✓ ' : ''}${label}`;
+
+      renderStatsChart();
+    }
+
+    function renderStatsChart() {
+      const canvas = document.getElementById('financeChart');
+      if (!canvas) return;
+
+      const selectedAsset = document.getElementById('chartAssetSelect')?.value || 'ALL';
+      const period = state.chartPeriod;
+      const targetYear = state.currentDate.getFullYear();
+      const targetMonth = state.currentDate.getMonth() + 1;
+
+      let labels = [];
+      let incomeData = [];
+      let expenseData = [];
+      let balanceData = [];
+
+      // 기준 시점 자산 초기 잔액 집계
+      const getInitialAssetSum = () => {
+        if (selectedAsset === 'ALL') {
+          return state.assets.reduce((sum, a) => sum + Number(a.initialBalance || 0), 0);
+        }
+        const found = state.assets.find(a => a.name === selectedAsset);
+        return found ? Number(found.initialBalance || 0) : 0;
+      };
+
+      // 개별 거래가 선택된 자산에 미치는 증감 계산
+      const getTxDelta = (t) => {
+        const amt = Number(t.amount);
+        if (selectedAsset === 'ALL') {
+          if (t.type === 'income') return amt;
+          if (t.type === 'expense') return -amt;
+          return 0; // 전체 자산 내부 이체는 순변동 0
+        } else {
+          let delta = 0;
+          if (t.toAsset === selectedAsset) delta += amt;
+          if (t.fromAsset === selectedAsset) delta -= amt;
+          return delta;
+        }
+      };
+
+      // 거래 내역 날짜 오름차순 정렬
+      const sortedTxs = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
+
+      if (period === 'daily') {
+        // 일별: 선택된 연/월의 1일 ~ 말일
+        document.getElementById('chartSubtitleInfo').innerText = `${targetYear}년 ${targetMonth}월 일별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+        const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+        const monthPrefix = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
+
+        // 해당 월 1일 이전까지의 누적 잔액 계산
+        let currentRunningBal = getInitialAssetSum();
+        sortedTxs.forEach(t => {
+          if (t.date < `${monthPrefix}-01`) {
+            currentRunningBal += getTxDelta(t);
+          }
+        });
+
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayStr = `${monthPrefix}-${String(d).padStart(2, '0')}`;
+          labels.push(`${d}일`);
+
+          const dayTxs = sortedTxs.filter(t => t.date === dayStr);
+          let inc = 0;
+          let exp = 0;
+
+          dayTxs.forEach(t => {
+            const amt = Number(t.amount);
+            if (selectedAsset === 'ALL') {
+              if (t.type === 'income') inc += amt;
+              if (t.type === 'expense') exp += amt;
+            } else {
+              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
+              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+            }
+            currentRunningBal += getTxDelta(t);
+          });
+
+          incomeData.push(inc);
+          expenseData.push(exp);
+          balanceData.push(currentRunningBal);
+        }
+
+      } else if (period === 'monthly') {
+        // 월별: 선택된 연도의 1월 ~ 12월
+        document.getElementById('chartSubtitleInfo').innerText = `${targetYear}년 월별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+
+        let currentRunningBal = getInitialAssetSum();
+        sortedTxs.forEach(t => {
+          if (t.date < `${targetYear}-01-01`) {
+            currentRunningBal += getTxDelta(t);
+          }
+        });
+
+        for (let m = 1; m <= 12; m++) {
+          const mStr = `${targetYear}-${String(m).padStart(2, '0')}`;
+          labels.push(`${m}월`);
+
+          const monthTxs = sortedTxs.filter(t => t.date.startsWith(mStr));
+          let inc = 0;
+          let exp = 0;
+
+          monthTxs.forEach(t => {
+            const amt = Number(t.amount);
+            if (selectedAsset === 'ALL') {
+              if (t.type === 'income') inc += amt;
+              if (t.type === 'expense') exp += amt;
+            } else {
+              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
+              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+            }
+            currentRunningBal += getTxDelta(t);
+          });
+
+          incomeData.push(inc);
+          expenseData.push(exp);
+          balanceData.push(currentRunningBal);
+        }
+
+      } else {
+        // 연별: 최근 5개년
+        document.getElementById('chartSubtitleInfo').innerText = `최근 연도별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+        const startYear = targetYear - 4;
+
+        let currentRunningBal = getInitialAssetSum();
+        sortedTxs.forEach(t => {
+          if (t.date < `${startYear}-01-01`) {
+            currentRunningBal += getTxDelta(t);
+          }
+        });
+
+        for (let y = startYear; y <= targetYear; y++) {
+          const yStr = String(y);
+          labels.push(`${y}년`);
+
+          const yearTxs = sortedTxs.filter(t => t.date.startsWith(yStr));
+          let inc = 0;
+          let exp = 0;
+
+          yearTxs.forEach(t => {
+            const amt = Number(t.amount);
+            if (selectedAsset === 'ALL') {
+              if (t.type === 'income') inc += amt;
+              if (t.type === 'expense') exp += amt;
+            } else {
+              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
+              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+            }
+            currentRunningBal += getTxDelta(t);
+          });
+
+          incomeData.push(inc);
+          expenseData.push(exp);
+          balanceData.push(currentRunningBal);
+        }
+      }
+
+      // Chart.js 데이터셋 조립
+      const datasets = [];
+
+      if (state.chartVisibility.income) {
+        datasets.push({
+          type: 'bar',
+          label: '수입',
+          data: incomeData,
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderRadius: 4,
+          order: 2
+        });
+      }
+
+      if (state.chartVisibility.expense) {
+        datasets.push({
+          type: 'bar',
+          label: '지출',
+          data: expenseData,
+          backgroundColor: 'rgba(244, 63, 94, 0.7)',
+          borderRadius: 4,
+          order: 3
+        });
+      }
+
+      if (state.chartVisibility.balance) {
+        datasets.push({
+          type: 'line',
+          label: '자산 잔액',
+          data: balanceData,
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 2.5,
+          tension: 0.25,
+          fill: false,
+          pointRadius: period === 'daily' ? 1.5 : 3.5,
+          order: 1
+        });
+      }
+
+      // 기존 차트 인스턴스 파괴 후 재구성
+      if (state.chartInstance) {
+        state.chartInstance.destroy();
+      }
+
+      state.chartInstance = new Chart(canvas, {
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  return `${context.dataset.label}: ${Number(context.raw).toLocaleString()}원`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10 }, maxRotation: 0 }
+            },
+            y: {
+              grid: { color: 'rgba(226, 232, 240, 0.6)' },
+              ticks: {
+                font: { size: 9 },
+                callback: function(value) {
+                  if (Math.abs(value) >= 100000000) return (value / 100000000).toFixed(1) + '억';
+                  if (Math.abs(value) >= 10000) return (value / 10000).toFixed(0) + '만';
+                  return value;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 4. 자산 관리 탭
     function renderAssets() {
       const balances = calculateAssetBalances();
       let total = 0;
@@ -948,6 +1268,7 @@
       });
     }
 
+    // 5. 설정 탭
     function renderSettings() {
       const expList = document.getElementById('settingsExpenseCatList');
       if (expList) {
@@ -984,6 +1305,7 @@
       }
     }
 
+    // 거래 관리 팝업
     function openTxActionModal(id) {
       const tx = state.transactions.find(t => t.id === id);
       if (!tx) return;
