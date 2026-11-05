@@ -124,25 +124,30 @@
       </div>
     </section>
 
-    <!-- 4. 자산 관리 탭 -->
-    <section id="tab-assets" class="space-y-4 hidden">
-      <div class="flex justify-between items-center">
-        <div>
-          <h2 class="text-base font-bold text-slate-900">내 자산 현황</h2>
-          <p class="text-xs text-slate-500">순자산 총액: <span id="totalAssetSum" class="font-bold text-slate-800">0원</span></p>
+    <!-- 4. 자산 관리 탭 (분류별 구분 및 소계) -->
+    <section id="tab-assets" class="space-y-5 hidden">
+      <!-- 총 순자산 요약 카드 -->
+      <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm">
+        <div class="flex justify-between items-center">
+          <div>
+            <span class="text-xs text-slate-400 block mb-1">우리 부부 순자산 총액</span>
+            <span id="totalAssetSum" class="text-2xl font-bold tracking-tight">0원</span>
+          </div>
+          <button onclick="openModal('assetModal')" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3.5 py-2 rounded-xl transition font-medium border border-white/10">
+            + 자산 추가
+          </button>
         </div>
-        <button onclick="openModal('assetModal')" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-1.5 rounded-lg">
-          + 자산 추가
-        </button>
       </div>
-      <div id="assetsCardList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+
+      <!-- 분류별(생활비, 비상금, 투자, 부동산) 렌더링 컨테이너 -->
+      <div id="assetsCategoryGroups" class="space-y-4"></div>
     </section>
 
     <!-- 5. 설정 탭 -->
     <section id="tab-settings" class="space-y-4 hidden">
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <h3 class="text-sm font-bold text-slate-800 mb-2">기본 작성자 선택</h3>
-        <p class="text-xs text-slate-500 mb-3">이 스마트폰에서 작성할 기본 프로필을 선택하세요.</p>
+        <p class="text-xs text-slate-500 mb-3">이 스마트폰에서 기록할 기본 프로필을 선택하세요.</p>
         <div class="flex gap-3">
           <button onclick="setUserProfile('남편')" id="btnProfileHusband" class="flex-1 py-2 rounded-xl text-sm font-semibold border border-slate-300">
             남편
@@ -155,7 +160,7 @@
 
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <h3 class="text-sm font-bold text-slate-800 mb-1">클라우드 DB 연결 정보</h3>
-        <p class="text-xs text-slate-500 mb-2">Firebase `dokyuwallet` 프로젝트와 자동 연결되었습니다.</p>
+        <p class="text-xs text-slate-500 mb-2">Firebase `dokyuwallet` 프로젝트와 자동 연동되어 있습니다.</p>
         <div class="text-[11px] bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-slate-600 space-y-1">
           <div><span class="font-semibold">프로젝트:</span> dokyuwallet</div>
           <div><span class="font-semibold">동기화 상태:</span> <span id="settingsStatusText" class="text-emerald-600 font-bold">동기화 활성화됨</span></div>
@@ -242,7 +247,7 @@
 
         <div>
           <label class="block text-slate-600 mb-1 font-medium">내용 / 메모</label>
-          <input type="text" id="txDescription" required placeholder="예: 장보기, 점심식사" class="w-full border border-slate-200 rounded-lg p-2.5">
+          <input type="text" id="txDescription" required placeholder="예: 마트 장보기, 저축 이체" class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
 
         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition mt-2">
@@ -262,20 +267,19 @@
       <form id="assetForm" onsubmit="handleAssetSubmit(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-600 mb-1 font-medium">자산명</label>
-          <input type="text" id="assetName" required placeholder="예: 생활비 통장, 주택청약" class="w-full border border-slate-200 rounded-lg p-2.5">
+          <input type="text" id="assetName" required placeholder="예: 생활비 통장, 주식 계좌, 아파트" class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
         <div>
           <label class="block text-slate-600 mb-1 font-medium">자산 분류</label>
           <select id="assetType" class="w-full border border-slate-200 rounded-lg p-2.5">
-            <option value="입출금">입출금 통장</option>
-            <option value="적금/예금">예적금</option>
-            <option value="증권">투자/증권</option>
-            <option value="신용카드">신용카드</option>
-            <option value="현금">현금 및 기타</option>
+            <option value="생활비">생활비</option>
+            <option value="비상금">비상금</option>
+            <option value="투자">투자</option>
+            <option value="부동산">부동산</option>
           </select>
         </div>
         <div>
-          <label class="block text-slate-600 mb-1 font-medium">초기 잔액 (원)</label>
+          <label class="block text-slate-600 mb-1 font-medium">초기 잔액 / 평가액 (원)</label>
           <input type="number" id="assetInitialBalance" required placeholder="0" class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
         <button type="submit" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl transition">
@@ -286,7 +290,6 @@
   </div>
 
   <script>
-    // 전달받은 Firebase dokyuwallet 설정 객체 내장
     const FIREBASE_CONFIG = {
       apiKey: "AIzaSyANLAY0TiNPjQpfc6kc6tAQDYYJD4ClIKw",
       authDomain: "dokyuwallet.firebaseapp.com",
@@ -297,15 +300,17 @@
       measurementId: "G-E1M0XZMYT6"
     };
 
+    const ASSET_CATEGORIES = ['생활비', '비상금', '투자', '부동산'];
+
     const CATEGORIES = {
       expense: ['식비', '카페/간식', '생활/쇼핑', '주거/통신', '교통/차량', '의료/건강', '문화/여가', '경조사', '기타'],
-      income: ['급여', '상여금', '부수입', '금융소득', '용돈', '기타']
+      income: ['급여', '상여금', '부수입', '배당/금융소득', '용돈', '기타']
     };
 
     const DEFAULT_ASSETS = [
-      { id: 'ast_1', name: '공동 생활비 통장', type: '입출금', initialBalance: 1000000 },
-      { id: 'ast_2', name: '비상금 통장', type: '입출금', initialBalance: 5000000 },
-      { id: 'ast_3', name: '공동 신용카드', type: '신용카드', initialBalance: 0 }
+      { id: 'ast_1', name: '공동 생활비 계좌', type: '생활비', initialBalance: 1500000 },
+      { id: 'ast_2', name: 'CMA 비상금', type: '비상금', initialBalance: 5000000 },
+      { id: 'ast_3', name: '증권 위탁 계좌', type: '투자', initialBalance: 10000000 }
     ];
 
     let state = {
@@ -327,7 +332,6 @@
       renderAll();
     });
 
-    // Firebase 자동 초기화 및 실시간 리스너 연결
     function initFirebaseAuto() {
       try {
         if (!firebase.apps.length) {
@@ -340,16 +344,14 @@
         badge.innerText = '실시간 동기화 중';
         badge.className = 'text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium';
 
-        // 거래 내역 실시간 동기화
+        // 거래 내역 실시간 리스너
         state.db.collection('transactions').onSnapshot(snapshot => {
           state.transactions = snapshot.docs.map(doc => doc.data());
           localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
           renderAll();
-        }, err => {
-          console.error('거래 내역 동기화 오류:', err);
-        });
+        }, err => console.error('거래 내역 동기화 오류:', err));
 
-        // 자산 목록 실시간 동기화
+        // 자산 목록 실시간 리스너
         state.db.collection('assets').onSnapshot(snapshot => {
           if (!snapshot.empty) {
             state.assets = snapshot.docs.map(doc => doc.data());
@@ -357,12 +359,9 @@
             updateAssetSelects();
             renderAll();
           } else {
-            // 처음 실행 시 기본 자산 3개를 DB에 자동 등록
             DEFAULT_ASSETS.forEach(a => state.db.collection('assets').doc(a.id).set(a));
           }
-        }, err => {
-          console.error('자산 동기화 오류:', err);
-        });
+        }, err => console.error('자산 동기화 오류:', err));
 
       } catch (err) {
         console.error('Firebase 초기화 실패:', err);
@@ -444,7 +443,7 @@
     }
 
     function updateAssetSelects() {
-      const opts = state.assets.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+      const opts = state.assets.map(a => `<option value="${a.name}">${a.name} (${a.type || '기타'})</option>`).join('');
       document.getElementById('txAsset').innerHTML = opts;
       document.getElementById('txFromAsset').innerHTML = opts;
       document.getElementById('txToAsset').innerHTML = opts;
@@ -701,28 +700,75 @@
       `;
     }
 
+    // 4. 자산 탭 렌더링 (분류별 그룹핑 & 소계 계산)
     function renderAssets() {
       const balances = calculateAssetBalances();
       let total = 0;
       Object.values(balances).forEach(v => total += v);
       document.getElementById('totalAssetSum').innerText = `${total.toLocaleString()}원`;
 
-      const container = document.getElementById('assetsCardList');
-      container.innerHTML = state.assets.map(a => {
-        const bal = balances[a.name] || 0;
-        return `
-          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">${a.type}</span>
-              <button onclick="deleteAsset('${a.id}')" class="text-slate-300 hover:text-rose-500 text-xs">✕</button>
+      // 분류별 배지 색상 테마
+      const categoryTheme = {
+        '생활비': { badge: 'bg-emerald-100 text-emerald-800', bar: 'border-emerald-500' },
+        '비상금': { badge: 'bg-blue-100 text-blue-800', bar: 'border-blue-500' },
+        '투자': { badge: 'bg-purple-100 text-purple-800', bar: 'border-purple-500' },
+        '부동산': { badge: 'bg-amber-100 text-amber-800', bar: 'border-amber-500' }
+      };
+
+      const container = document.getElementById('assetsCategoryGroups');
+      container.innerHTML = '';
+
+      ASSET_CATEGORIES.forEach(category => {
+        // 해당 카테고리에 속한 자산 필터링 (기존 데이터 호환을 위해 분류 없는 경우 생활비로 기본 배정)
+        const assetsInCat = state.assets.filter(a => (a.type || '생활비') === category);
+        let subtotal = 0;
+        assetsInCat.forEach(a => {
+          subtotal += (balances[a.name] || 0);
+        });
+
+        const theme = categoryTheme[category] || { badge: 'bg-slate-100 text-slate-800', bar: 'border-slate-400' };
+
+        const section = document.createElement('div');
+        section.className = 'bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3';
+
+        let innerCardsHtml = '';
+        if (assetsInCat.length === 0) {
+          innerCardsHtml = `<p class="text-xs text-slate-400 py-2">등록된 ${category} 자산이 없습니다.</p>`;
+        } else {
+          innerCardsHtml = `
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              ${assetsInCat.map(a => {
+                const bal = balances[a.name] || 0;
+                return `
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex justify-between items-center">
+                    <div>
+                      <p class="text-xs font-semibold text-slate-700">${a.name}</p>
+                      <p class="text-sm font-bold text-slate-900 mt-0.5">${bal.toLocaleString()}원</p>
+                    </div>
+                    <button onclick="deleteAsset('${a.id}')" class="text-slate-300 hover:text-rose-500 text-xs px-1">✕</button>
+                  </div>
+                `;
+              }).join('')}
             </div>
-            <div>
-              <p class="text-xs font-semibold text-slate-700">${a.name}</p>
-              <p class="text-base font-bold text-slate-900 mt-1">${bal.toLocaleString()}원</p>
+          `;
+        }
+
+        section.innerHTML = `
+          <div class="flex justify-between items-center border-b border-slate-100 pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="text-xs px-2 py-0.5 rounded-full font-bold ${theme.badge}">${category}</span>
+              <span class="text-xs text-slate-400">${assetsInCat.length}개</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] text-slate-400 block leading-tight">소계</span>
+              <span class="text-sm font-bold text-slate-800">${subtotal.toLocaleString()}원</span>
             </div>
           </div>
+          ${innerCardsHtml}
         `;
-      }).join('');
+
+        container.appendChild(section);
+      });
     }
 
     async function handleTransactionSubmit(e) {
