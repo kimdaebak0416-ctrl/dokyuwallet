@@ -18,15 +18,12 @@
 
   <!-- 상단 네비게이션 헤더 -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
-    <div>
-      <h1 class="text-lg font-bold text-slate-900 flex items-center gap-1.5">
-        <span>가계부</span>
-        <span id="syncStatusBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">연결 중...</span>
-      </h1>
-      <p class="text-xs text-slate-500" id="currentWriterDisplay">작성자: 남편</p>
+    <div class="flex items-center gap-2">
+      <h1 class="text-lg font-bold text-slate-900">가계부</h1>
+      <span id="syncStatusBadge" class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">실시간 동기화 중</span>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="openModal('txModal')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-medium shadow-sm transition">
+      <button onclick="openModal('txModal')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold shadow-sm transition">
         + 내역 추가
       </button>
       <button onclick="switchTab('settings')" class="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">
@@ -73,16 +70,11 @@
     <!-- 2. 내역 탭 -->
     <section id="tab-list" class="space-y-3 hidden">
       <div class="flex gap-2">
-        <select id="listTypeFilter" onchange="renderListView()" class="bg-white border border-slate-300 rounded-lg text-xs px-3 py-2 flex-1">
-          <option value="ALL">전체 유형</option>
+        <select id="listTypeFilter" onchange="renderListView()" class="bg-white border border-slate-300 rounded-lg text-xs px-3 py-2 w-full">
+          <option value="ALL">전체 유형 (수입/지출/이체)</option>
           <option value="expense">지출만</option>
           <option value="income">수입만</option>
           <option value="transfer">이체만</option>
-        </select>
-        <select id="listWriterFilter" onchange="renderListView()" class="bg-white border border-slate-300 rounded-lg text-xs px-3 py-2 flex-1">
-          <option value="ALL">전체 작성자</option>
-          <option value="남편">남편</option>
-          <option value="아내">아내</option>
         </select>
       </div>
       <div id="fullTransactionList" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
@@ -116,21 +108,15 @@
         </div>
         <div id="categoryStatsList" class="space-y-3"></div>
       </div>
-
-      <!-- 작성자별 지출 비중 -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h3 class="text-sm font-bold text-slate-800 mb-3">부부 지출 비율</h3>
-        <div id="writerStatsContainer" class="space-y-2 text-xs"></div>
-      </div>
     </section>
 
-    <!-- 4. 자산 관리 탭 (분류별 구분 및 소계) -->
-    <section id="tab-assets" class="space-y-5 hidden">
+    <!-- 4. 자산 관리 탭 -->
+    <section id="tab-assets" class="space-y-4 hidden">
       <!-- 총 순자산 요약 카드 -->
       <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-sm">
         <div class="flex justify-between items-center">
           <div>
-            <span class="text-xs text-slate-400 block mb-1">우리 부부 순자산 총액</span>
+            <span class="text-xs text-slate-400 block mb-1">우리 순자산 총액</span>
             <span id="totalAssetSum" class="text-2xl font-bold tracking-tight">0원</span>
           </div>
           <button onclick="openModal('assetModal')" class="bg-white/10 hover:bg-white/20 text-white text-xs px-3.5 py-2 rounded-xl transition font-medium border border-white/10">
@@ -139,32 +125,53 @@
         </div>
       </div>
 
-      <!-- 분류별(생활비, 비상금, 투자, 부동산) 렌더링 컨테이너 -->
+      <!-- 분류별(생활비, 비상금, 투자, 부동산) 목록 -->
       <div id="assetsCategoryGroups" class="space-y-4"></div>
     </section>
 
     <!-- 5. 설정 탭 -->
-    <section id="tab-settings" class="space-y-4 hidden">
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h3 class="text-sm font-bold text-slate-800 mb-2">기본 작성자 선택</h3>
-        <p class="text-xs text-slate-500 mb-3">이 스마트폰에서 기록할 기본 프로필을 선택하세요.</p>
-        <div class="flex gap-3">
-          <button onclick="setUserProfile('남편')" id="btnProfileHusband" class="flex-1 py-2 rounded-xl text-sm font-semibold border border-slate-300">
-            남편
-          </button>
-          <button onclick="setUserProfile('아내')" id="btnProfileWife" class="flex-1 py-2 rounded-xl text-sm font-semibold border border-slate-300">
-            아내
-          </button>
+    <section id="tab-settings" class="space-y-5 hidden">
+      <!-- 기존 엉킨 자산 일괄 청소/재정렬 안내 카드 -->
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <div class="flex justify-between items-start mb-2">
+          <h3 class="text-sm font-bold text-amber-900">자산 목록 초기화 & 정리</h3>
+          <span class="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-semibold">정리도구</span>
         </div>
+        <p class="text-xs text-amber-700 mb-3 leading-relaxed">
+          이전에 등록된 중복·구버전 자산이 남아있다면 한 번에 깨끗이 지우고 <b>생활비, 비상금, 투자, 부동산</b> 기본 자산으로 재구성합니다. (거래 내역은 유지됩니다)
+        </p>
+        <button onclick="resetAssetsToDefault()" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-sm">
+          중복 자산 삭제 및 4대 분류로 초기화
+        </button>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <h3 class="text-sm font-bold text-slate-800 mb-1">클라우드 DB 연결 정보</h3>
-        <p class="text-xs text-slate-500 mb-2">Firebase `dokyuwallet` 프로젝트와 자동 연동되어 있습니다.</p>
-        <div class="text-[11px] bg-slate-50 border border-slate-200 p-2.5 rounded-lg text-slate-600 space-y-1">
-          <div><span class="font-semibold">프로젝트:</span> dokyuwallet</div>
-          <div><span class="font-semibold">동기화 상태:</span> <span id="settingsStatusText" class="text-emerald-600 font-bold">동기화 활성화됨</span></div>
+      <!-- 지출 카테고리 관리 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h3 class="text-sm font-bold text-slate-800">지출 카테고리 관리</h3>
+        <div class="flex gap-2">
+          <input type="text" id="newExpenseCatInput" placeholder="추가할 지출 카테고리 (예: 육아)" class="border border-slate-200 rounded-lg p-2 text-xs flex-1">
+          <button onclick="addCategory('expense')" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-2 rounded-lg font-medium">추가</button>
         </div>
+        <div id="settingsExpenseCatList" class="flex flex-wrap gap-1.5 pt-1"></div>
+      </div>
+
+      <!-- 수입 카테고리 관리 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h3 class="text-sm font-bold text-slate-800">수입 카테고리 관리</h3>
+        <div class="flex gap-2">
+          <input type="text" id="newIncomeCatInput" placeholder="추가할 수입 카테고리 (예: 배당금)" class="border border-slate-200 rounded-lg p-2 text-xs flex-1">
+          <button onclick="addCategory('income')" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-2 rounded-lg font-medium">추가</button>
+        </div>
+        <div id="settingsIncomeCatList" class="flex flex-wrap gap-1.5 pt-1"></div>
+      </div>
+
+      <!-- 자산 관리 목록 바로가기 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="text-sm font-bold text-slate-800">등록된 전체 자산 관리</h3>
+          <button onclick="openModal('assetModal')" class="text-xs text-blue-600 font-semibold">+ 자산 추가</button>
+        </div>
+        <div id="settingsAssetManageList" class="divide-y divide-slate-100 text-xs"></div>
       </div>
     </section>
 
@@ -205,18 +212,9 @@
       </div>
 
       <form id="txForm" onsubmit="handleTransactionSubmit(event)" class="space-y-3 text-xs">
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <label class="block text-slate-600 mb-1 font-medium">날짜</label>
-            <input type="date" id="txDate" required class="w-full border border-slate-200 rounded-lg p-2.5">
-          </div>
-          <div>
-            <label class="block text-slate-600 mb-1 font-medium">작성자</label>
-            <select id="txWriter" class="w-full border border-slate-200 rounded-lg p-2.5">
-              <option value="남편">남편</option>
-              <option value="아내">아내</option>
-            </select>
-          </div>
+        <div>
+          <label class="block text-slate-600 mb-1 font-medium">날짜</label>
+          <input type="date" id="txDate" required class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
 
         <div>
@@ -247,7 +245,7 @@
 
         <div>
           <label class="block text-slate-600 mb-1 font-medium">내용 / 메모</label>
-          <input type="text" id="txDescription" required placeholder="예: 마트 장보기, 저축 이체" class="w-full border border-slate-200 rounded-lg p-2.5">
+          <input type="text" id="txDescription" required placeholder="예: 장보기, 점심식사" class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
 
         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-sm transition mt-2">
@@ -267,7 +265,7 @@
       <form id="assetForm" onsubmit="handleAssetSubmit(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-600 mb-1 font-medium">자산명</label>
-          <input type="text" id="assetName" required placeholder="예: 생활비 통장, 주식 계좌, 아파트" class="w-full border border-slate-200 rounded-lg p-2.5">
+          <input type="text" id="assetName" required placeholder="예: 생활비 통장, 비상금 적금, 아파트" class="w-full border border-slate-200 rounded-lg p-2.5">
         </div>
         <div>
           <label class="block text-slate-600 mb-1 font-medium">자산 분류</label>
@@ -302,22 +300,22 @@
 
     const ASSET_CATEGORIES = ['생활비', '비상금', '투자', '부동산'];
 
-    const CATEGORIES = {
+    const DEFAULT_CATEGORIES = {
       expense: ['식비', '카페/간식', '생활/쇼핑', '주거/통신', '교통/차량', '의료/건강', '문화/여가', '경조사', '기타'],
-      income: ['급여', '상여금', '부수입', '배당/금융소득', '용돈', '기타']
+      income: ['급여', '상여금', '부수입', '금융소득', '용돈', '기타']
     };
 
     const DEFAULT_ASSETS = [
-      { id: 'ast_1', name: '공동 생활비 계좌', type: '생활비', initialBalance: 1500000 },
-      { id: 'ast_2', name: 'CMA 비상금', type: '비상금', initialBalance: 5000000 },
-      { id: 'ast_3', name: '증권 위탁 계좌', type: '투자', initialBalance: 10000000 }
+      { id: 'ast_1', name: '생활비 통장', type: '생활비', initialBalance: 1500000 },
+      { id: 'ast_2', name: '비상금 통장', type: '비상금', initialBalance: 5000000 },
+      { id: 'ast_3', name: '투자 통장', type: '투자', initialBalance: 10000000 }
     ];
 
     let state = {
-      user: localStorage.getItem('budget_user') || '남편',
       currentDate: new Date(),
       selectedDate: new Date().toISOString().slice(0, 10),
       currentType: 'expense',
+      categories: JSON.parse(localStorage.getItem('budget_custom_cats')) || DEFAULT_CATEGORIES,
       assets: JSON.parse(localStorage.getItem('budget_assets')) || DEFAULT_ASSETS,
       transactions: JSON.parse(localStorage.getItem('budget_txs')) || [],
       isFirebaseReady: false,
@@ -326,7 +324,6 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('txDate').value = state.selectedDate;
-      setUserProfile(state.user);
       initFirebaseAuto();
       updateAssetSelects();
       renderAll();
@@ -340,18 +337,14 @@
         state.db = firebase.firestore();
         state.isFirebaseReady = true;
 
-        const badge = document.getElementById('syncStatusBadge');
-        badge.innerText = '실시간 동기화 중';
-        badge.className = 'text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium';
-
-        // 거래 내역 실시간 리스너
+        // 거래 내역 실시간 동기화
         state.db.collection('transactions').onSnapshot(snapshot => {
           state.transactions = snapshot.docs.map(doc => doc.data());
           localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
           renderAll();
         }, err => console.error('거래 내역 동기화 오류:', err));
 
-        // 자산 목록 실시간 리스너
+        // 자산 목록 실시간 동기화
         state.db.collection('assets').onSnapshot(snapshot => {
           if (!snapshot.empty) {
             state.assets = snapshot.docs.map(doc => doc.data());
@@ -363,12 +356,44 @@
           }
         }, err => console.error('자산 동기화 오류:', err));
 
+        // 카테고리 실시간 동기화
+        state.db.collection('settings').doc('categories').onSnapshot(doc => {
+          if (doc.exists) {
+            state.categories = doc.data();
+            localStorage.setItem('budget_custom_cats', JSON.stringify(state.categories));
+            populateCategories(state.currentType);
+            renderSettings();
+          } else {
+            state.db.collection('settings').doc('categories').set(DEFAULT_CATEGORIES);
+          }
+        });
+
       } catch (err) {
         console.error('Firebase 초기화 실패:', err);
-        const badge = document.getElementById('syncStatusBadge');
-        badge.innerText = '로컬 모드';
-        badge.className = 'text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-medium';
       }
+    }
+
+    // 엉킨 구버전 자산 일괄 청소 및 4대 분류 기본 자산으로 리셋
+    async function resetAssetsToDefault() {
+      if (!confirm('현재 저장된 자산 목록을 모두 지우고 [생활비, 비상금, 투자] 기본 자산으로 깔끔하게 재정렬하시겠습니까?\n(기존 수입/지출 거래 내역은 안전하게 유지됩니다)')) return;
+
+      if (state.isFirebaseReady) {
+        const snapshot = await state.db.collection('assets').get();
+        const batch = state.db.batch();
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
+        for (const ast of DEFAULT_ASSETS) {
+          await state.db.collection('assets').doc(ast.id).set(ast);
+        }
+      } else {
+        state.assets = [...DEFAULT_ASSETS];
+        localStorage.setItem('budget_assets', JSON.stringify(state.assets));
+      }
+
+      alert('자산 목록이 깨끗하게 정리되었습니다.');
+      updateAssetSelects();
+      renderAll();
     }
 
     function switchTab(tabName) {
@@ -385,23 +410,11 @@
       if (tabName === 'list') renderListView();
       if (tabName === 'stats') renderStats();
       if (tabName === 'assets') renderAssets();
+      if (tabName === 'settings') renderSettings();
     }
 
     function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
     function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-
-    function setUserProfile(name) {
-      state.user = name;
-      localStorage.setItem('budget_user', name);
-      document.getElementById('currentWriterDisplay').innerText = `작성자: ${name}`;
-      document.getElementById('txWriter').value = name;
-      document.getElementById('btnProfileHusband').className = name === '남편' 
-        ? 'flex-1 py-2 rounded-xl text-sm font-semibold border-2 border-blue-600 text-blue-600 bg-blue-50' 
-        : 'flex-1 py-2 rounded-xl text-sm font-semibold border border-slate-300 text-slate-700';
-      document.getElementById('btnProfileWife').className = name === '아내' 
-        ? 'flex-1 py-2 rounded-xl text-sm font-semibold border-2 border-rose-600 text-rose-600 bg-rose-50' 
-        : 'flex-1 py-2 rounded-xl text-sm font-semibold border border-slate-300 text-slate-700';
-    }
 
     function setTxType(type) {
       state.currentType = type;
@@ -439,15 +452,17 @@
 
     function populateCategories(type) {
       const select = document.getElementById('txCategory');
-      select.innerHTML = CATEGORIES[type].map(c => `<option value="${c}">${c}</option>`).join('');
+      const cats = state.categories[type] || [];
+      select.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
     }
 
     function updateAssetSelects() {
-      const opts = state.assets.map(a => `<option value="${a.name}">${a.name} (${a.type || '기타'})</option>`).join('');
+      // 4대 분류에 맞는 자산만 드롭다운에 표시
+      const opts = state.assets.map(a => `<option value="${a.name}">${a.name} (${a.type || '생활비'})</option>`).join('');
       document.getElementById('txAsset').innerHTML = opts;
       document.getElementById('txFromAsset').innerHTML = opts;
       document.getElementById('txToAsset').innerHTML = opts;
-      populateCategories('expense');
+      populateCategories(state.currentType);
     }
 
     function calculateAssetBalances() {
@@ -474,6 +489,7 @@
       renderListView();
       renderStats();
       renderAssets();
+      renderSettings();
     }
 
     function changeMonth(delta) {
@@ -574,7 +590,7 @@
               ${badge}
               <div>
                 <p class="font-medium text-slate-800 text-xs">${t.description}</p>
-                <p class="text-[10px] text-slate-400">${info} · ${t.writer || '남편'}</p>
+                <p class="text-[10px] text-slate-400">${info}</p>
               </div>
             </div>
             <div class="flex items-center gap-2">
@@ -590,11 +606,8 @@
 
     function renderListView() {
       const typeFilter = document.getElementById('listTypeFilter').value;
-      const writerFilter = document.getElementById('listWriterFilter').value;
-
       let filtered = [...state.transactions];
       if (typeFilter !== 'ALL') filtered = filtered.filter(t => t.type === typeFilter);
-      if (writerFilter !== 'ALL') filtered = filtered.filter(t => t.writer === writerFilter);
 
       filtered.sort((a, b) => b.date.localeCompare(a.date));
 
@@ -618,7 +631,6 @@
               <div class="flex items-center gap-1.5 mb-0.5">
                 <span class="text-slate-400 text-[10px]">${t.date}</span>
                 <span class="font-semibold text-slate-700">${t.description}</span>
-                <span class="text-[10px] px-1 py-0.2 bg-slate-100 text-slate-600 rounded">${t.writer}</span>
               </div>
               <div class="text-[11px] text-slate-400">${info}</div>
             </div>
@@ -641,7 +653,6 @@
       let inc = 0;
       let exp = 0;
       const catTotals = {};
-      const writerTotals = { '남편': 0, '아내': 0 };
 
       monthlyTxs.forEach(t => {
         const amt = Number(t.amount);
@@ -650,8 +661,6 @@
           exp += amt;
           const cat = t.category || '기타';
           catTotals[cat] = (catTotals[cat] || 0) + amt;
-          const w = t.writer || '남편';
-          writerTotals[w] = (writerTotals[w] || 0) + amt;
         }
       });
 
@@ -681,59 +690,37 @@
           `;
         }).join('');
       }
-
-      const writerEl = document.getElementById('writerStatsContainer');
-      const husbandExp = writerTotals['남편'] || 0;
-      const wifeExp = writerTotals['아내'] || 0;
-      const hPct = exp > 0 ? ((husbandExp / exp) * 100).toFixed(1) : 50;
-      const wPct = exp > 0 ? ((wifeExp / exp) * 100).toFixed(1) : 50;
-
-      writerEl.innerHTML = `
-        <div class="flex justify-between font-semibold">
-          <span class="text-blue-600">남편: ${husbandExp.toLocaleString()}원 (${hPct}%)</span>
-          <span class="text-rose-600">아내: ${wifeExp.toLocaleString()}원 (${wPct}%)</span>
-        </div>
-        <div class="w-full bg-slate-100 rounded-full h-3 flex overflow-hidden">
-          <div class="bg-blue-500 h-full" style="width: ${hPct}%"></div>
-          <div class="bg-rose-400 h-full" style="width: ${wPct}%"></div>
-        </div>
-      `;
     }
 
-    // 4. 자산 탭 렌더링 (분류별 그룹핑 & 소계 계산)
     function renderAssets() {
       const balances = calculateAssetBalances();
       let total = 0;
       Object.values(balances).forEach(v => total += v);
       document.getElementById('totalAssetSum').innerText = `${total.toLocaleString()}원`;
 
-      // 분류별 배지 색상 테마
       const categoryTheme = {
-        '생활비': { badge: 'bg-emerald-100 text-emerald-800', bar: 'border-emerald-500' },
-        '비상금': { badge: 'bg-blue-100 text-blue-800', bar: 'border-blue-500' },
-        '투자': { badge: 'bg-purple-100 text-purple-800', bar: 'border-purple-500' },
-        '부동산': { badge: 'bg-amber-100 text-amber-800', bar: 'border-amber-500' }
+        '생활비': { badge: 'bg-emerald-100 text-emerald-800' },
+        '비상금': { badge: 'bg-blue-100 text-blue-800' },
+        '투자': { badge: 'bg-purple-100 text-purple-800' },
+        '부동산': { badge: 'bg-amber-100 text-amber-800' }
       };
 
       const container = document.getElementById('assetsCategoryGroups');
       container.innerHTML = '';
 
       ASSET_CATEGORIES.forEach(category => {
-        // 해당 카테고리에 속한 자산 필터링 (기존 데이터 호환을 위해 분류 없는 경우 생활비로 기본 배정)
         const assetsInCat = state.assets.filter(a => (a.type || '생활비') === category);
         let subtotal = 0;
-        assetsInCat.forEach(a => {
-          subtotal += (balances[a.name] || 0);
-        });
+        assetsInCat.forEach(a => subtotal += (balances[a.name] || 0));
 
-        const theme = categoryTheme[category] || { badge: 'bg-slate-100 text-slate-800', bar: 'border-slate-400' };
+        const theme = categoryTheme[category] || { badge: 'bg-slate-100 text-slate-800' };
 
         const section = document.createElement('div');
         section.className = 'bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3';
 
         let innerCardsHtml = '';
         if (assetsInCat.length === 0) {
-          innerCardsHtml = `<p class="text-xs text-slate-400 py-2">등록된 ${category} 자산이 없습니다.</p>`;
+          innerCardsHtml = `<p class="text-xs text-slate-400 py-1">등록된 ${category} 자산이 없습니다.</p>`;
         } else {
           innerCardsHtml = `
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -771,6 +758,78 @@
       });
     }
 
+    // 설정 탭 렌더링 (카테고리 칩 및 자산 관리 목록)
+    function renderSettings() {
+      // 1. 지출 카테고리 태그
+      const expList = document.getElementById('settingsExpenseCatList');
+      if (expList) {
+        expList.innerHTML = (state.categories.expense || []).map(cat => `
+          <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-100">
+            ${cat}
+            <button onclick="deleteCategory('expense', '${cat}')" class="hover:text-rose-900 font-bold ml-0.5">✕</button>
+          </span>
+        `).join('');
+      }
+
+      // 2. 수입 카테고리 태그
+      const incList = document.getElementById('settingsIncomeCatList');
+      if (incList) {
+        incList.innerHTML = (state.categories.income || []).map(cat => `
+          <span class="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-100">
+            ${cat}
+            <button onclick="deleteCategory('income', '${cat}')" class="hover:text-blue-900 font-bold ml-0.5">✕</button>
+          </span>
+        `).join('');
+      }
+
+      // 3. 자산 세부 목록
+      const assetList = document.getElementById('settingsAssetManageList');
+      if (assetList) {
+        assetList.innerHTML = state.assets.map(a => `
+          <div class="py-2.5 flex justify-between items-center">
+            <div>
+              <span class="font-semibold text-slate-800">${a.name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 ml-1">${a.type || '생활비'}</span>
+              <p class="text-[11px] text-slate-400">초기 잔액: ${Number(a.initialBalance || 0).toLocaleString()}원</p>
+            </div>
+            <button onclick="deleteAsset('${a.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-medium">삭제</button>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 카테고리 추가
+    async function addCategory(type) {
+      const input = document.getElementById(type === 'expense' ? 'newExpenseCatInput' : 'newIncomeCatInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      if (!state.categories[type].includes(val)) {
+        state.categories[type].push(val);
+        if (state.isFirebaseReady) {
+          await state.db.collection('settings').doc('categories').set(state.categories);
+        } else {
+          localStorage.setItem('budget_custom_cats', JSON.stringify(state.categories));
+          renderSettings();
+          populateCategories(state.currentType);
+        }
+      }
+      input.value = '';
+    }
+
+    // 카테고리 삭제
+    async function deleteCategory(type, cat) {
+      if (!confirm(`'${cat}' 카테고리를 삭제하시겠습니까?`)) return;
+      state.categories[type] = state.categories[type].filter(c => c !== cat);
+      if (state.isFirebaseReady) {
+        await state.db.collection('settings').doc('categories').set(state.categories);
+      } else {
+        localStorage.setItem('budget_custom_cats', JSON.stringify(state.categories));
+        renderSettings();
+        populateCategories(state.currentType);
+      }
+    }
+
     async function handleTransactionSubmit(e) {
       e.preventDefault();
       const type = state.currentType;
@@ -778,7 +837,6 @@
         id: 'tx_' + Date.now(),
         date: document.getElementById('txDate').value,
         type: type,
-        writer: document.getElementById('txWriter').value,
         amount: Number(document.getElementById('txAmount').value),
         description: document.getElementById('txDescription').value,
         category: type === 'transfer' ? '이체' : document.getElementById('txCategory').value,
