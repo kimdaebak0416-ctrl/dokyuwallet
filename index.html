@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>우리 둘만의 가계부</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Chart.js 라이브러리 추가 -->
+  <!-- Chart.js 라이브러리 -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Firebase SDK (Compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -25,22 +25,15 @@
 </head>
 <body class="bg-slate-100 text-slate-800 pb-32">
 
-  <!-- 상단 공통 네비게이션 헤더 (모든 탭에서 연·월 즉시 선택 및 동기화) -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-2.5 flex justify-between items-center shadow-sm">
-    <div class="flex items-center gap-1.5">
-      <h1 class="text-base font-bold text-slate-900">가계부</h1>
-      <span id="syncStatusBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">동기화 중</span>
+  <!-- 상단 네비게이션 헤더 (깔끔하게 정돈) -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
+    <div class="flex items-center gap-2">
+      <h1 class="text-lg font-bold text-slate-900">가계부</h1>
+      <span id="syncStatusBadge" class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-medium">동기화 중</span>
     </div>
-
-    <!-- 중앙 공통 연·월 전환 버튼 (터치 시 연월 픽커 오픈) -->
-    <button onclick="openMonthPickerModal()" class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-full font-bold text-xs text-slate-800 transition">
-      <span id="headerMonthTitle">2026년 11월</span>
-      <span class="text-[9px] text-slate-400">▼</span>
-    </button>
-
-    <div class="flex items-center gap-1.5">
-      <button onclick="openNewTxModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold shadow-sm transition">
-        + 추가
+    <div class="flex items-center gap-2">
+      <button onclick="openNewTxModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold shadow-sm transition">
+        + 내역 추가
       </button>
       <button onclick="switchTab('settings')" class="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg">
         ⚙️
@@ -56,9 +49,12 @@
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         
         <!-- 달력 연월 좌우 전환 바 -->
-        <div class="flex justify-between items-center px-4 py-2.5 border-b border-slate-100">
+        <div class="flex justify-between items-center px-4 py-3 border-b border-slate-100">
           <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&lt;</button>
-          <span class="font-bold text-sm text-slate-800" id="calendarSectionTitle">2026년 11월</span>
+          <button onclick="openMonthPickerModal()" class="font-bold text-base text-slate-800 hover:text-blue-600 flex items-center gap-1.5">
+            <span id="calendarSectionTitle">2026년 11월</span>
+            <span class="text-xs text-slate-400">▼</span>
+          </button>
           <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&gt;</button>
         </div>
 
@@ -93,7 +89,7 @@
         <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
       </div>
 
-      <!-- 선택된 날짜 상세 내역 목록 (우측 3단 깔끔 정렬) -->
+      <!-- 선택된 날짜 상세 내역 목록 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-2.5">
           <div>
@@ -106,9 +102,8 @@
       </div>
     </section>
 
-    <!-- 2. 내역 탭 (선택된 연·월 동기화 표시) -->
+    <!-- 2. 내역 탭 -->
     <section id="tab-list" class="space-y-3 hidden">
-      <!-- 월 전환 & 필터 카드 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 space-y-2.5">
         <div class="flex justify-between items-center px-1">
           <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-100 rounded-lg font-bold text-slate-600">&lt;</button>
@@ -132,15 +127,21 @@
       <div id="fullTransactionList" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
-    <!-- 3. 통계 탭 (자산별 연·월·일 추이 그래프 & 토글) -->
+    <!-- 3. 통계 탭 (직관적인 < 2026년 11월 > 선택 바 적용) -->
     <section id="tab-stats" class="space-y-3 hidden">
       <!-- 요약 수치 카드 -->
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
-        <div class="flex justify-between items-center mb-2">
-          <h3 class="text-xs font-semibold text-slate-400" id="statsMonthLabel">2026년 11월 요약</h3>
-          <button onclick="openMonthPickerModal()" class="text-xs text-blue-600 font-semibold hover:underline">기준월 변경</button>
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <!-- 직관적인 연/월 선택 네비게이션 -->
+        <div class="flex justify-between items-center border-b border-slate-100 pb-2.5 px-1">
+          <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&lt;</button>
+          <button onclick="openMonthPickerModal()" class="font-bold text-base text-slate-800 hover:text-blue-600 flex items-center gap-1.5">
+            <span id="statsSectionTitle">2026년 11월</span>
+            <span class="text-xs text-slate-400">▼</span>
+          </button>
+          <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-100 rounded-lg font-bold text-slate-600 text-sm">&gt;</button>
         </div>
-        <div class="grid grid-cols-3 gap-2 text-center">
+
+        <div class="grid grid-cols-3 gap-2 text-center pt-1">
           <div class="bg-blue-50 p-2.5 rounded-xl">
             <span class="text-xs text-blue-600 block mb-0.5 font-medium">수입</span>
             <span class="text-xs sm:text-sm font-bold text-blue-700" id="statsTotalIncome">0원</span>
@@ -216,21 +217,32 @@
       <div id="assetsCategoryGroups" class="space-y-4"></div>
     </section>
 
-    <!-- 5. 설정 탭 -->
+    <!-- 5. 설정 탭 (CSV 백업/복원 탑재 & 자산초기화 제거) -->
     <section id="tab-settings" class="space-y-5 hidden">
-      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-        <div class="flex justify-between items-start mb-2">
-          <h3 class="text-sm font-bold text-amber-900">자산 목록 초기화 & 정리</h3>
-          <span class="text-[10px] bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded font-semibold">정리도구</span>
+      
+      <!-- CSV 백업 및 복원 기능 -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <h3 class="text-sm font-bold text-slate-800">데이터 백업 및 복원 (CSV)</h3>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">CSV 관리</span>
         </div>
-        <p class="text-xs text-amber-700 mb-3 leading-relaxed">
-          이전에 등록된 구버전 중복 자산이 남아있다면 <b>생활비, 비상금, 투자</b> 기본 자산으로 재구성합니다. (거래 내역은 유지됩니다)
+        <p class="text-xs text-slate-500 leading-relaxed">
+          가계부 내역을 엑셀에서 열 수 있는 CSV 파일로 다운로드하거나, 이전에 백업해둔 CSV 파일을 불러와 가계부에 등록할 수 있습니다.
         </p>
-        <button onclick="resetAssetsToDefault()" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold py-2.5 rounded-xl transition shadow-sm">
-          중복 자산 삭제 및 4대 분류로 초기화
-        </button>
+        <div class="grid grid-cols-2 gap-2 pt-1">
+          <button onclick="exportToCSV()" class="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition">
+            <span>📥</span>
+            <span>CSV 내보내기</span>
+          </button>
+          <label class="w-full py-2.5 px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer text-center">
+            <span>📤</span>
+            <span>CSV 가져오기</span>
+            <input type="file" id="csvFileInput" accept=".csv" onchange="importFromCSV(event)" class="hidden">
+          </label>
+        </div>
       </div>
 
+      <!-- 지출 카테고리 관리 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
         <h3 class="text-sm font-bold text-slate-800">지출 카테고리 관리</h3>
         <div class="flex gap-2">
@@ -240,6 +252,7 @@
         <div id="settingsExpenseCatList" class="flex flex-wrap gap-1.5 pt-1"></div>
       </div>
 
+      <!-- 수입 카테고리 관리 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
         <h3 class="text-sm font-bold text-slate-800">수입 카테고리 관리</h3>
         <div class="flex gap-2">
@@ -249,6 +262,7 @@
         <div id="settingsIncomeCatList" class="flex flex-wrap gap-1.5 pt-1"></div>
       </div>
 
+      <!-- 등록된 전체 자산 관리 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
         <div class="flex justify-between items-center mb-3">
           <h3 class="text-sm font-bold text-slate-800">등록된 전체 자산 관리</h3>
@@ -450,7 +464,7 @@
       transactions: JSON.parse(localStorage.getItem('budget_txs')) || [],
       selectedTxForAction: null,
       pickerYear: new Date().getFullYear(),
-      chartPeriod: 'daily', // 'daily', 'monthly', 'yearly'
+      chartPeriod: 'daily',
       chartVisibility: { income: true, expense: true, balance: true },
       chartInstance: null,
       isFirebaseReady: false,
@@ -503,28 +517,6 @@
       } catch (err) {
         console.error('Firebase 초기화 실패:', err);
       }
-    }
-
-    async function resetAssetsToDefault() {
-      if (!confirm('현재 저장된 자산 목록을 모두 지우고 [생활비, 비상금, 투자] 기본 자산으로 깔끔하게 재정렬하시겠습니까?\n(기존 거래 내역은 안전하게 유지됩니다)')) return;
-
-      if (state.isFirebaseReady) {
-        const snapshot = await state.db.collection('assets').get();
-        const batch = state.db.batch();
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-
-        for (const ast of DEFAULT_ASSETS) {
-          await state.db.collection('assets').doc(ast.id).set(ast);
-        }
-      } else {
-        state.assets = [...DEFAULT_ASSETS];
-        localStorage.setItem('budget_assets', JSON.stringify(state.assets));
-      }
-
-      alert('자산 목록이 깨끗하게 정리되었습니다.');
-      updateAssetSelects();
-      renderAll();
     }
 
     function switchTab(tabName) {
@@ -668,7 +660,6 @@
       document.getElementById('txFromAsset').innerHTML = opts;
       document.getElementById('txToAsset').innerHTML = opts;
 
-      // 통계 탭용 자산 선택 옵션 (전체 자산 포함)
       const chartSelect = document.getElementById('chartAssetSelect');
       if (chartSelect) {
         chartSelect.innerHTML = `<option value="ALL">전체 자산 (순자산 합산)</option>` + 
@@ -696,17 +687,14 @@
       return balances;
     }
 
-    // 모든 탭 일괄 갱신 (헤더 타이틀 포함)
     function renderAll() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth() + 1;
       const formattedTitle = `${year}년 ${month}월`;
 
-      // 헤더 및 각 탭 공통 타이틀 동기화
-      document.getElementById('headerMonthTitle').innerText = formattedTitle;
       document.getElementById('calendarSectionTitle').innerText = formattedTitle;
       document.getElementById('listMonthTitle').innerText = `${formattedTitle} 내역`;
-      document.getElementById('statsMonthLabel').innerText = `${formattedTitle} 요약`;
+      document.getElementById('statsSectionTitle').innerText = formattedTitle;
 
       renderCalendar();
       renderSelectedDayList();
@@ -870,13 +858,12 @@
       `;
     }
 
-    // 2. 내역 탭 (선택된 연·월 내역만 필터링)
+    // 2. 내역 탭
     function renderListView() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
       const typeFilter = document.getElementById('listTypeFilter').value;
 
-      // 해당 연/월에 속하는 거래만 추출
       let filtered = state.transactions.filter(t => t.date.startsWith(monthStr));
       if (typeFilter !== 'ALL') filtered = filtered.filter(t => t.type === typeFilter);
 
@@ -914,7 +901,7 @@
       }).join('');
     }
 
-    // 3. 통계 탭 요약 수치
+    // 3. 통계 탭 요약
     function renderStatsSummary() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -933,7 +920,6 @@
       document.getElementById('statsNetSavings').innerText = `${(inc - exp).toLocaleString()}원`;
     }
 
-    // --- [통계 인터랙티브 차트 엔진 (Chart.js)] ---
     function setChartPeriod(period) {
       state.chartPeriod = period;
       ['daily', 'monthly', 'yearly'].forEach(p => {
@@ -979,7 +965,6 @@
       let expenseData = [];
       let balanceData = [];
 
-      // 기준 시점 자산 초기 잔액 집계
       const getInitialAssetSum = () => {
         if (selectedAsset === 'ALL') {
           return state.assets.reduce((sum, a) => sum + Number(a.initialBalance || 0), 0);
@@ -988,13 +973,12 @@
         return found ? Number(found.initialBalance || 0) : 0;
       };
 
-      // 개별 거래가 선택된 자산에 미치는 증감 계산
       const getTxDelta = (t) => {
         const amt = Number(t.amount);
         if (selectedAsset === 'ALL') {
           if (t.type === 'income') return amt;
           if (t.type === 'expense') return -amt;
-          return 0; // 전체 자산 내부 이체는 순변동 0
+          return 0;
         } else {
           let delta = 0;
           if (t.toAsset === selectedAsset) delta += amt;
@@ -1003,16 +987,13 @@
         }
       };
 
-      // 거래 내역 날짜 오름차순 정렬
       const sortedTxs = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
 
       if (period === 'daily') {
-        // 일별: 선택된 연/월의 1일 ~ 말일
         document.getElementById('chartSubtitleInfo').innerText = `${targetYear}년 ${targetMonth}월 일별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
         const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
         const monthPrefix = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
 
-        // 해당 월 1일 이전까지의 누적 잔액 계산
         let currentRunningBal = getInitialAssetSum();
         sortedTxs.forEach(t => {
           if (t.date < `${monthPrefix}-01`) {
@@ -1046,7 +1027,6 @@
         }
 
       } else if (period === 'monthly') {
-        // 월별: 선택된 연도의 1월 ~ 12월
         document.getElementById('chartSubtitleInfo').innerText = `${targetYear}년 월별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
 
         let currentRunningBal = getInitialAssetSum();
@@ -1082,7 +1062,6 @@
         }
 
       } else {
-        // 연별: 최근 5개년
         document.getElementById('chartSubtitleInfo').innerText = `최근 연도별 추이 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
         const startYear = targetYear - 4;
 
@@ -1119,7 +1098,6 @@
         }
       }
 
-      // Chart.js 데이터셋 조립
       const datasets = [];
 
       if (state.chartVisibility.income) {
@@ -1159,7 +1137,6 @@
         });
       }
 
-      // 기존 차트 인스턴스 파괴 후 재구성
       if (state.chartInstance) {
         state.chartInstance.destroy();
       }
@@ -1303,6 +1280,123 @@
           </div>
         `).join('');
       }
+    }
+
+    // --- [CSV 내보내기 & 가져오기] ---
+    function exportToCSV() {
+      if (!state.transactions.length) {
+        alert('내보낼 거래 내역이 없습니다.');
+        return;
+      }
+
+      const headers = ['날짜', '유형', '금액', '내용', '카테고리', '출금자산', '입금자산'];
+      const rows = state.transactions.map(t => [
+        t.date || '',
+        t.type === 'expense' ? '지출' : (t.type === 'income' ? '수입' : '이체'),
+        t.amount || 0,
+        `"${(t.description || '').replace(/"/g, '""')}"`,
+        `"${(t.category || '').replace(/"/g, '""')}"`,
+        `"${(t.fromAsset || '').replace(/"/g, '""')}"`,
+        `"${(t.toAsset || '').replace(/"/g, '""')}"`
+      ]);
+
+      // 엑셀 한글 깨짐 방지용 UTF-8 BOM(\uFEFF) 탑재
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `가계부_내역_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importFromCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const text = e.target.result;
+        const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+        if (lines.length <= 1) {
+          alert('가져올 유효한 데이터가 없습니다.');
+          return;
+        }
+
+        const newTxs = [];
+        for (let i = 1; i < lines.length; i++) {
+          const row = parseCSVLine(lines[i]);
+          if (row.length < 4) continue;
+          const [date, typeStr, amountStr, desc, cat, fromA, toA] = row;
+          let type = 'expense';
+          if (typeStr === '수입' || typeStr === 'income') type = 'income';
+          else if (typeStr === '이체' || typeStr === 'transfer') type = 'transfer';
+
+          newTxs.push({
+            id: 'tx_csv_' + Date.now() + '_' + i,
+            date: (date || '').trim(),
+            type: type,
+            amount: Number(amountStr.replace(/[^0-9.-]+/g, '')) || 0,
+            description: (desc || '').trim(),
+            category: (cat || (type === 'transfer' ? '이체' : '기타')).trim(),
+            fromAsset: (fromA || '').trim(),
+            toAsset: (toA || '').trim(),
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        if (!newTxs.length) {
+          alert('CSV 파일에서 올바른 거래 내역을 찾을 수 없습니다.');
+          return;
+        }
+
+        if (!confirm(`총 ${newTxs.length}건의 거래 내역을 불러와 추가하시겠습니까?`)) {
+          event.target.value = '';
+          return;
+        }
+
+        if (state.isFirebaseReady) {
+          const batch = state.db.batch();
+          newTxs.forEach(tx => {
+            const ref = state.db.collection('transactions').doc(tx.id);
+            batch.set(ref, tx);
+          });
+          await batch.commit();
+        } else {
+          state.transactions.push(...newTxs);
+          localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
+          renderAll();
+        }
+
+        alert('CSV 데이터를 성공적으로 불러왔습니다.');
+        event.target.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function parseCSVLine(line) {
+      const result = [];
+      let start = 0;
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') {
+          inQuotes = !inQuotes;
+        } else if (line[i] === ',' && !inQuotes) {
+          let field = line.substring(start, i).trim();
+          if (field.startsWith('"') && field.endsWith('"')) {
+            field = field.substring(1, field.length - 1).replace(/""/g, '"');
+          }
+          result.push(field);
+          start = i + 1;
+        }
+      }
+      let lastField = line.substring(start).trim();
+      if (lastField.startsWith('"') && lastField.endsWith('"')) {
+        lastField = lastField.substring(1, lastField.length - 1).replace(/""/g, '"');
+      }
+      result.push(lastField);
+      return result;
     }
 
     // 거래 관리 팝업
