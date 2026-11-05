@@ -30,7 +30,6 @@
     <div class="flex items-center gap-1.5">
       <h1 class="text-base font-bold text-slate-900 tracking-tight">가계부</h1>
       <span id="syncStatusBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">동기화 중</span>
-      <!-- 원터치 새로고침 버튼 -->
       <button onclick="location.reload()" title="새로고침" class="p-1 hover:bg-slate-100 active:bg-slate-200 text-slate-600 rounded transition flex items-center justify-center">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -47,7 +46,7 @@
     </div>
   </header>
 
-  <!-- 메인 탭 컨테이너 (여백 최소화로 화면 꽉 차게 구성) -->
+  <!-- 메인 탭 컨테이너 -->
   <main class="max-w-xl mx-auto p-2 space-y-2">
 
     <!-- 1. 달력 탭 -->
@@ -133,7 +132,6 @@
 
     <!-- 3. 통계 탭 -->
     <section id="tab-stats" class="space-y-2 hidden">
-      <!-- 요약 수치 카드 -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2">
         <div class="flex justify-between items-center border-b border-slate-100 pb-2 px-1">
           <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-xs">&lt;</button>
@@ -160,7 +158,7 @@
         </div>
       </div>
 
-      <!-- 인터랙티브 그래프 카드 -->
+      <!-- 인터랙티브 그래프 카드 (디폴트: 잔액만 켜짐) -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2.5">
         <div class="flex justify-between items-center pb-2 border-b border-slate-100">
           <div>
@@ -180,13 +178,14 @@
           <select id="chartAssetSelect" onchange="renderStatsChart()" class="bg-slate-50 border border-slate-200 rounded text-xs px-2 py-1 flex-1 font-semibold text-slate-700"></select>
         </div>
 
+        <!-- 항목 토글 버튼 (잔액만 디폴트 ON) -->
         <div class="flex items-center gap-1 pt-0.5">
           <span class="text-[10px] text-slate-400 mr-0.5 font-medium">항목:</span>
-          <button onclick="toggleChartDataset('income')" id="toggleBtnIncome" class="px-2 py-0.5 rounded text-[10px] font-bold border border-blue-500 bg-blue-50 text-blue-600 transition">
-            ✓ 수입
+          <button onclick="toggleChartDataset('income')" id="toggleBtnIncome" class="px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-400 transition">
+            수입
           </button>
-          <button onclick="toggleChartDataset('expense')" id="toggleBtnExpense" class="px-2 py-0.5 rounded text-[10px] font-bold border border-rose-500 bg-rose-50 text-rose-600 transition">
-            ✓ 지출
+          <button onclick="toggleChartDataset('expense')" id="toggleBtnExpense" class="px-2 py-0.5 rounded text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-400 transition">
+            지출
           </button>
           <button onclick="toggleChartDataset('balance')" id="toggleBtnBalance" class="px-2 py-0.5 rounded text-[10px] font-bold border border-emerald-500 bg-emerald-50 text-emerald-600 transition">
             ✓ 잔액
@@ -216,7 +215,7 @@
       <div id="assetsCategoryGroups" class="space-y-2"></div>
     </section>
 
-    <!-- 5. 설정 탭 (자산초기화 삭제 & CSV 백업을 맨 아래로 배치) -->
+    <!-- 5. 설정 탭 -->
     <section id="tab-settings" class="space-y-2.5 hidden">
       
       <!-- 지출 카테고리 관리 -->
@@ -239,16 +238,19 @@
         <div id="settingsIncomeCatList" class="flex flex-wrap gap-1 pt-1"></div>
       </div>
 
-      <!-- 등록된 전체 자산 관리 -->
+      <!-- [업그레이드] 자산 순서 이동 및 정보/카테고리 수정 관리 -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3">
         <div class="flex justify-between items-center mb-2 pb-1.5 border-b border-slate-100">
-          <h3 class="text-xs font-bold text-slate-800">등록된 전체 자산 관리</h3>
-          <button onclick="openModal('assetModal')" class="text-[11px] text-blue-600 font-semibold">+ 자산 추가</button>
+          <div>
+            <h3 class="text-xs font-bold text-slate-800">등록된 전체 자산 관리</h3>
+            <p class="text-[10px] text-slate-400">화살표(▲▼)로 순서를 변경하면 자산 탭에 즉시 반영됩니다.</p>
+          </div>
+          <button onclick="openModal('assetModal')" class="text-[11px] text-blue-600 font-semibold shrink-0">+ 자산 추가</button>
         </div>
         <div id="settingsAssetManageList" class="divide-y divide-slate-100 text-xs"></div>
       </div>
 
-      <!-- CSV 백업 및 복원 (맨 아래 배치) -->
+      <!-- CSV 백업 및 복원 -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2">
         <div class="flex justify-between items-center">
           <h3 class="text-xs font-bold text-slate-800">데이터 백업 및 복원 (CSV)</h3>
@@ -273,7 +275,7 @@
 
   </main>
 
-  <!-- 하단 고정 탭 바 (컴팩트하게 정돈) -->
+  <!-- 하단 고정 탭 바 -->
   <nav class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 pt-2 safe-bottom-nav flex justify-between items-center max-w-xl mx-auto z-20 shadow-md">
     <button onclick="switchTab('calendar')" id="nav-calendar" class="flex flex-col items-center text-blue-600 transition">
       <span class="text-base">📅</span>
@@ -314,7 +316,7 @@
     </div>
   </div>
 
-  <!-- 거래 추가 / 수정 모달 -->
+  <!-- 거래 추가 / 수정 모달 (자동완성 datalist 연동) -->
   <div id="txModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -362,9 +364,11 @@
           <select id="txCategory" class="w-full border border-slate-200 rounded p-2"></select>
         </div>
 
+        <!-- [신규 기능] 내용/메모 자동완성 리스트 연동 -->
         <div>
-          <label class="block text-slate-600 mb-1 font-medium">내용 / 메모</label>
-          <input type="text" id="txDescription" required placeholder="예: 장보기, 점심식사" class="w-full border border-slate-200 rounded p-2">
+          <label class="block text-slate-600 mb-1 font-medium">내용 / 메모 (이전 입력 자동완성)</label>
+          <input type="text" id="txDescription" list="descAutocompleteList" required placeholder="예: 장보기, 점심식사" class="w-full border border-slate-200 rounded p-2">
+          <datalist id="descAutocompleteList"></datalist>
         </div>
 
         <button type="submit" id="txSubmitBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded text-xs transition mt-1">
@@ -398,14 +402,15 @@
     </div>
   </div>
 
-  <!-- 자산 추가 모달 -->
+  <!-- 자산 추가 / 수정 모달 -->
   <div id="assetModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-sm rounded-xl p-4 space-y-3">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-        <h3 class="text-xs font-bold text-slate-900">새 자산 등록</h3>
+        <h3 id="assetModalTitle" class="text-xs font-bold text-slate-900">새 자산 등록</h3>
         <button onclick="closeModal('assetModal')" class="text-slate-400 hover:text-slate-600 text-base font-bold">✕</button>
       </div>
       <form id="assetForm" onsubmit="handleAssetSubmit(event)" class="space-y-2.5 text-xs">
+        <input type="hidden" id="editingAssetId" value="">
         <div>
           <label class="block text-slate-600 mb-1 font-medium">자산명</label>
           <input type="text" id="assetName" required placeholder="예: 생활비 통장, 비상금 적금, 아파트" class="w-full border border-slate-200 rounded p-2">
@@ -423,7 +428,7 @@
           <label class="block text-slate-600 mb-1 font-medium">초기 잔액 / 평가액 (원)</label>
           <input type="number" id="assetInitialBalance" required placeholder="0" class="w-full border border-slate-200 rounded p-2">
         </div>
-        <button type="submit" class="w-full bg-slate-900 text-white font-bold py-2 rounded transition">
+        <button type="submit" id="assetSubmitBtn" class="w-full bg-slate-900 text-white font-bold py-2 rounded transition">
           자산 저장
         </button>
       </form>
@@ -449,9 +454,9 @@
     };
 
     const DEFAULT_ASSETS = [
-      { id: 'ast_1', name: '생활비 통장', type: '생활비', initialBalance: 1500000 },
-      { id: 'ast_2', name: '비상금 통장', type: '비상금', initialBalance: 5000000 },
-      { id: 'ast_3', name: '투자 통장', type: '투자', initialBalance: 10000000 }
+      { id: 'ast_1', name: '생활비 통장', type: '생활비', initialBalance: 1500000, order: 0 },
+      { id: 'ast_2', name: '비상금 통장', type: '비상금', initialBalance: 5000000, order: 1 },
+      { id: 'ast_3', name: '투자 통장', type: '투자', initialBalance: 10000000, order: 2 }
     ];
 
     let state = {
@@ -464,7 +469,8 @@
       selectedTxForAction: null,
       pickerYear: new Date().getFullYear(),
       chartPeriod: 'daily',
-      chartVisibility: { income: true, expense: true, balance: true },
+      // 디폴트: 잔액만 켜짐
+      chartVisibility: { income: false, expense: false, balance: true },
       chartInstance: null,
       isFirebaseReady: false,
       db: null
@@ -473,9 +479,15 @@
     window.addEventListener('DOMContentLoaded', () => {
       document.getElementById('txDate').value = state.selectedDate;
       initFirebaseAuto();
+      sortAssets();
       updateAssetSelects();
+      updateDescriptionAutocomplete();
       renderAll();
     });
+
+    function sortAssets() {
+      state.assets.sort((a, b) => (a.order !== undefined && b.order !== undefined) ? (a.order - b.order) : 0);
+    }
 
     function initFirebaseAuto() {
       try {
@@ -488,12 +500,14 @@
         state.db.collection('transactions').onSnapshot(snapshot => {
           state.transactions = snapshot.docs.map(doc => doc.data());
           localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
+          updateDescriptionAutocomplete();
           renderAll();
         }, err => console.error('거래 내역 동기화 오류:', err));
 
         state.db.collection('assets').onSnapshot(snapshot => {
           if (!snapshot.empty) {
             state.assets = snapshot.docs.map(doc => doc.data());
+            sortAssets();
             localStorage.setItem('budget_assets', JSON.stringify(state.assets));
             updateAssetSelects();
             renderAll();
@@ -538,8 +552,22 @@
       if (tabName === 'settings') renderSettings();
     }
 
-    function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    function openModal(id) { 
+      if (id === 'assetModal' && !document.getElementById('editingAssetId').value) {
+        document.getElementById('assetModalTitle').innerText = '새 자산 등록';
+        document.getElementById('assetSubmitBtn').innerText = '자산 저장';
+        document.getElementById('assetName').value = '';
+        document.getElementById('assetType').value = '생활비';
+        document.getElementById('assetInitialBalance').value = '';
+      }
+      document.getElementById(id).classList.remove('hidden'); 
+    }
+    function closeModal(id) { 
+      if (id === 'assetModal') {
+        document.getElementById('editingAssetId').value = '';
+      }
+      document.getElementById(id).classList.add('hidden'); 
+    }
 
     // --- [연·월 팝업 픽커] ---
     function openMonthPickerModal() {
@@ -602,6 +630,14 @@
       return abs.toString();
     }
 
+    // [신규 기능] 내용/메모 자동완성 리스트 갱신
+    function updateDescriptionAutocomplete() {
+      const listEl = document.getElementById('descAutocompleteList');
+      if (!listEl) return;
+      const descs = Array.from(new Set(state.transactions.map(t => (t.description || '').trim()).filter(Boolean)));
+      listEl.innerHTML = descs.slice(0, 50).map(d => `<option value="${d}">`).join('');
+    }
+
     function openNewTxModal() {
       document.getElementById('editingTxId').value = '';
       document.getElementById('txModalTitle').innerText = '가계부 기록';
@@ -654,6 +690,7 @@
     }
 
     function updateAssetSelects() {
+      sortAssets();
       const opts = state.assets.map(a => `<option value="${a.name}">${a.name} (${a.type || '생활비'})</option>`).join('');
       document.getElementById('txAsset').innerHTML = opts;
       document.getElementById('txFromAsset').innerHTML = opts;
@@ -1177,8 +1214,9 @@
       });
     }
 
-    // 4. 자산 관리 탭
+    // 4. 자산 관리 탭 (정렬된 순서대로 표시)
     function renderAssets() {
+      sortAssets();
       const balances = calculateAssetBalances();
       let total = 0;
       Object.values(balances).forEach(v => total += v);
@@ -1244,7 +1282,7 @@
       });
     }
 
-    // 5. 설정 탭
+    // 5. 설정 탭 (자산 순서 이동 & 수정 버튼 탑재)
     function renderSettings() {
       const expList = document.getElementById('settingsExpenseCatList');
       if (expList) {
@@ -1268,17 +1306,70 @@
 
       const assetList = document.getElementById('settingsAssetManageList');
       if (assetList) {
-        assetList.innerHTML = state.assets.map(a => `
+        sortAssets();
+        assetList.innerHTML = state.assets.map((a, index) => `
           <div class="py-2 flex justify-between items-center">
             <div>
-              <span class="font-semibold text-slate-800 text-xs">${a.name}</span>
-              <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-500 ml-1">${a.type || '생활비'}</span>
-              <p class="text-[10px] text-slate-400">초기: ${Number(a.initialBalance || 0).toLocaleString()}원</p>
+              <div class="flex items-center gap-1.5">
+                <span class="font-semibold text-slate-800 text-xs">${a.name}</span>
+                <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">${a.type || '생활비'}</span>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-0.5">초기 잔액: ${Number(a.initialBalance || 0).toLocaleString()}원</p>
             </div>
-            <button onclick="deleteAsset('${a.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-medium">삭제</button>
+            <div class="flex items-center gap-1">
+              <!-- 순서 이동 버튼 -->
+              <button onclick="moveAssetOrder(${index}, -1)" ${index === 0 ? 'disabled class="opacity-25 p-1 text-slate-400"' : 'class="p-1 hover:bg-slate-100 text-slate-600 rounded"'} title="위로">▲</button>
+              <button onclick="moveAssetOrder(${index}, 1)" ${index === state.assets.length - 1 ? 'disabled class="opacity-25 p-1 text-slate-400"' : 'class="p-1 hover:bg-slate-100 text-slate-600 rounded"'} title="아래로">▼</button>
+              <!-- 자산 정보/카테고리 수정 버튼 -->
+              <button onclick="openEditAssetModal('${a.id}')" class="px-1.5 py-1 text-blue-600 hover:bg-blue-50 rounded text-xs font-semibold ml-1">수정</button>
+              <button onclick="deleteAsset('${a.id}')" class="px-1.5 py-1 text-rose-500 hover:bg-rose-50 rounded text-xs font-semibold">삭제</button>
+            </div>
           </div>
         `).join('');
       }
+    }
+
+    // [신규 기능] 자산 순서 이동 로직
+    async function moveAssetOrder(index, direction) {
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= state.assets.length) return;
+
+      const temp = state.assets[index];
+      state.assets[index] = state.assets[targetIndex];
+      state.assets[targetIndex] = temp;
+
+      // order 인덱스 재부여
+      state.assets.forEach((a, idx) => a.order = idx);
+
+      if (state.isFirebaseReady) {
+        const batch = state.db.batch();
+        state.assets.forEach(a => {
+          const ref = state.db.collection('assets').doc(a.id);
+          batch.update(ref, { order: a.order });
+        });
+        await batch.commit();
+      } else {
+        localStorage.setItem('budget_assets', JSON.stringify(state.assets));
+      }
+
+      updateAssetSelects();
+      renderAll();
+    }
+
+    // [신규 기능] 자산 수정 모달 열기
+    function openEditAssetModal(id) {
+      const a = state.assets.find(ast => ast.id === id);
+      if (!a) return;
+
+      document.getElementById('editingAssetId').value = a.id;
+      document.getElementById('assetModalTitle').innerText = '자산 정보 및 분류 수정';
+      document.getElementById('assetSubmitBtn').innerText = '수정 완료';
+
+      document.getElementById('assetName').value = a.name;
+      document.getElementById('assetType').value = a.type || '생활비';
+      document.getElementById('assetInitialBalance').value = a.initialBalance || 0;
+
+      openModal('assetModal');
     }
 
     // CSV 내보내기 & 가져오기
@@ -1476,7 +1567,7 @@
         date: document.getElementById('txDate').value,
         type: type,
         amount: Number(document.getElementById('txAmount').value),
-        description: document.getElementById('txDescription').value,
+        description: document.getElementById('txDescription').value.trim(),
         category: type === 'transfer' ? '이체' : document.getElementById('txCategory').value,
         fromAsset: type === 'expense' || type === 'transfer' ? (type === 'transfer' ? document.getElementById('txFromAsset').value : document.getElementById('txAsset').value) : '',
         toAsset: type === 'income' || type === 'transfer' ? (type === 'transfer' ? document.getElementById('txToAsset').value : document.getElementById('txAsset').value) : '',
@@ -1508,6 +1599,7 @@
       document.getElementById('editingTxId').value = '';
       document.getElementById('txAmount').value = '';
       document.getElementById('txDescription').value = '';
+      updateDescriptionAutocomplete();
       closeModal('txModal');
     }
 
@@ -1552,27 +1644,81 @@
       }
     }
 
+    // 자산 등록 및 수정 핸들러
     async function handleAssetSubmit(e) {
       e.preventDefault();
-      const newAsset = {
-        id: 'ast_' + Date.now(),
-        name: document.getElementById('assetName').value.trim(),
-        type: document.getElementById('assetType').value,
-        initialBalance: Number(document.getElementById('assetInitialBalance').value) || 0
-      };
+      const editingId = document.getElementById('editingAssetId').value;
+      const assetId = editingId || ('ast_' + Date.now());
+      const newName = document.getElementById('assetName').value.trim();
+      const newType = document.getElementById('assetType').value;
+      const newBal = Number(document.getElementById('assetInitialBalance').value) || 0;
 
-      if (state.isFirebaseReady) {
-        await state.db.collection('assets').doc(newAsset.id).set(newAsset);
+      if (editingId) {
+        // 기존 자산 수정
+        const target = state.assets.find(a => a.id === editingId);
+        const oldName = target ? target.name : '';
+
+        const updatedAsset = {
+          id: editingId,
+          name: newName,
+          type: newType,
+          initialBalance: newBal,
+          order: target ? (target.order ?? 0) : 0
+        };
+
+        if (state.isFirebaseReady) {
+          await state.db.collection('assets').doc(editingId).set(updatedAsset, { merge: true });
+
+          // 자산명이 바뀐 경우, 기존 거래 내역의 fromAsset/toAsset 일괄 업데이트
+          if (oldName && oldName !== newName) {
+            const batch = state.db.batch();
+            state.transactions.forEach(t => {
+              let changed = false;
+              const updateData = {};
+              if (t.fromAsset === oldName) { updateData.fromAsset = newName; changed = true; }
+              if (t.toAsset === oldName) { updateData.toAsset = newName; changed = true; }
+              if (changed) {
+                batch.update(state.db.collection('transactions').doc(t.id), updateData);
+              }
+            });
+            await batch.commit();
+          }
+        } else {
+          const idx = state.assets.findIndex(a => a.id === editingId);
+          if (idx !== -1) state.assets[idx] = updatedAsset;
+          if (oldName && oldName !== newName) {
+            state.transactions.forEach(t => {
+              if (t.fromAsset === oldName) t.fromAsset = newName;
+              if (t.toAsset === oldName) t.toAsset = newName;
+            });
+            localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
+          }
+          localStorage.setItem('budget_assets', JSON.stringify(state.assets));
+        }
       } else {
-        state.assets.push(newAsset);
-        localStorage.setItem('budget_assets', JSON.stringify(state.assets));
-        updateAssetSelects();
-        renderAll();
+        // 새 자산 추가
+        const newAsset = {
+          id: assetId,
+          name: newName,
+          type: newType,
+          initialBalance: newBal,
+          order: state.assets.length
+        };
+
+        if (state.isFirebaseReady) {
+          await state.db.collection('assets').doc(newAsset.id).set(newAsset);
+        } else {
+          state.assets.push(newAsset);
+          localStorage.setItem('budget_assets', JSON.stringify(state.assets));
+        }
       }
 
+      document.getElementById('editingAssetId').value = '';
       document.getElementById('assetName').value = '';
       document.getElementById('assetInitialBalance').value = '';
       closeModal('assetModal');
+      updateAssetSelects();
+      renderAll();
     }
 
     async function deleteAsset(id) {
