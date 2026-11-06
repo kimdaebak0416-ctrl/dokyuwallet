@@ -159,7 +159,7 @@
       <div id="fullTransactionList" class="bg-white rounded-lg shadow-xs border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
-    <!-- 3. 통계 탭 (상단 요약 제거 및 차트 전용 기간/필터 컨트롤 탑재) -->
+    <!-- 3. 통계 탭 (중복 드롭다운 제거 & 독립 필터 및 기간 제어 탑재) -->
     <section id="tab-stats" class="space-y-2 hidden">
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-3">
         <!-- 1) 헤더 및 주기(일별/월별/연별) 선택 -->
@@ -182,13 +182,7 @@
           <div id="chartPeriodInputs" class="flex items-center gap-1.5 flex-1"></div>
         </div>
 
-        <!-- 3) 대상 자산 선택 -->
-        <div class="flex items-center gap-1.5">
-          <label class="text-[11px] text-slate-500 font-medium whitespace-nowrap">자산:</label>
-          <select id="chartAssetSelect" onchange="renderStatsChart()" class="bg-slate-50 border border-slate-200 rounded text-xs px-2 py-1 flex-1 font-semibold text-slate-700"></select>
-        </div>
-
-        <!-- 4) 그래프 전용 필터 & 수입/지출/잔액 토글 버튼 -->
+        <!-- 3) 그래프 필터 버튼 & 수입/지출/잔액 토글 버튼 (자산 선택은 필터 모달로 일원화) -->
         <div class="flex justify-between items-center pt-1 border-t border-slate-100">
           <button onclick="openFilterModal('chart')" class="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded text-[11px] font-semibold shadow-xs transition shrink-0">
             <span>⚙️ 그래프 필터</span>
@@ -209,7 +203,7 @@
           </div>
         </div>
 
-        <!-- 5) 차트 캔버스 -->
+        <!-- 4) 차트 캔버스 -->
         <div class="relative w-full h-64 pt-1">
           <canvas id="financeChart"></canvas>
         </div>
@@ -626,7 +620,7 @@
         categoriesExpense: [],
         categoriesIncome: []
       },
-      // 그래프 전용 독립 필터
+      // 그래프 전용 독립 필터 (자산 선택 포함)
       chartFilters: {
         types: [],
         members: [],
@@ -927,12 +921,6 @@
       document.getElementById('txFromAsset').innerHTML = opts;
       document.getElementById('txToAsset').innerHTML = opts;
 
-      const chartSelect = document.getElementById('chartAssetSelect');
-      if (chartSelect) {
-        chartSelect.innerHTML = `<option value="ALL">전체 자산 (순자산 합산)</option>` + 
-          validAssets.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
-      }
-
       populateCategories(state.currentType);
     }
 
@@ -1156,16 +1144,19 @@
       return true;
     }
 
-    // 그래프 전용 필터링 검사 함수
-    function matchesChartFilter(t) {
+    // 그래프 수입/지출 필터링 검사 함수 (모든 세부 필터 적용)
+    function matchesChartFlowFilter(t, selectedAssets) {
       const f = state.chartFilters;
       if (f.types.length > 0 && !f.types.includes(t.type)) return false;
       if (f.members.length > 0 && !f.members.includes(t.member || '공동')) return false;
-      if (f.assets.length > 0) {
-        const hasAsset = (t.fromAsset && f.assets.includes(t.fromAsset)) ||
-                         (t.toAsset && f.assets.includes(t.toAsset));
-        if (!hasAsset) return false;
+      
+      // 자산 매칭
+      if (selectedAssets.length > 0) {
+        const touch = (t.fromAsset && selectedAssets.includes(t.fromAsset)) ||
+                      (t.toAsset && selectedAssets.includes(t.toAsset));
+        if (!touch) return false;
       }
+
       if (t.type === 'expense' && f.categoriesExpense.length > 0) {
         if (!f.categoriesExpense.includes(t.category)) return false;
       }
@@ -1397,7 +1388,7 @@
       }
     }
 
-    // 3. 통계 탭: 기간 설정 입력 렌더링
+    // 3. 통계 탭: 기간 설정 입력 UI
     function renderChartPeriodInputs() {
       const container = document.getElementById('chartPeriodInputs');
       if (!container) return;
@@ -1484,60 +1475,77 @@
       renderStatsChart();
     }
 
-    // 3. 통계 탭: 그래프 렌더링
+    // 3. 통계 탭: 정밀 그래프 렌더링 (잔액 계산과 흐름 필터 분리)
     function renderStatsChart() {
       const canvas = document.getElementById('financeChart');
       if (!canvas) return;
 
       updateFilterUI();
 
-      const selectedAsset = document.getElementById('chartAssetSelect')?.value || 'ALL';
       const period = state.chartPeriod;
+      const selectedAssets = state.chartFilters.assets; // 비어 있으면 전체 자산 대상
+
+      const validAssets = state.assets.filter(a => state.assetCategories.includes(a.type));
+      const targetAssets = (selectedAssets.length > 0)
+        ? validAssets.filter(a => selectedAssets.includes(a.name))
+        : validAssets;
+
+      // 자산 이름 표시 텍스트
+      let assetLabel = '전체 자산';
+      if (selectedAssets.length === 1) {
+        assetLabel = selectedAssets[0];
+      } else if (selectedAssets.length > 1) {
+        assetLabel = `${selectedAssets[0]} 외 ${selectedAssets.length - 1}개`;
+      }
+
+      // 1) 대상 자산의 초기 잔액 합
+      const initialAssetSum = targetAssets.reduce((sum, a) => sum + Number(a.initialBalance || 0), 0);
+
+      // 2) 실제 통장 잔액 변동 계산 함수 (필터 조건과 무관하게 해당 자산들의 실제 잔고 변동만 추적)
+      const getTrueBalanceDelta = (t) => {
+        const amt = Number(t.amount);
+        const targetNames = targetAssets.map(a => a.name);
+
+        if (targetNames.length === validAssets.length) {
+          // 전체 자산일 때: 외부 수입(+), 외부 지출(-), 내부 이체(0)
+          if (t.type === 'income') return amt;
+          if (t.type === 'expense') return -amt;
+          return 0;
+        } else {
+          // 특정 선택 자산들일 때: 해당 자산군으로 들어오면(+), 나가면(-)
+          let delta = 0;
+          const fromIn = t.fromAsset && targetNames.includes(t.fromAsset);
+          const toIn = t.toAsset && targetNames.includes(t.toAsset);
+
+          if (t.type === 'income' && toIn) delta += amt;
+          if (t.type === 'expense' && fromIn) delta -= amt;
+          if (t.type === 'transfer') {
+            if (fromIn && !toIn) delta -= amt;
+            if (!fromIn && toIn) delta += amt;
+          }
+          return delta;
+        }
+      };
+
+      const sortedAllTxs = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
 
       let labels = [];
       let incomeData = [];
       let expenseData = [];
       let balanceData = [];
 
-      const validAssets = state.assets.filter(a => state.assetCategories.includes(a.type));
-
-      const getInitialAssetSum = () => {
-        if (selectedAsset === 'ALL') {
-          return validAssets.reduce((sum, a) => sum + Number(a.initialBalance || 0), 0);
-        }
-        const found = validAssets.find(a => a.name === selectedAsset);
-        return found ? Number(found.initialBalance || 0) : 0;
-      };
-
-      const getTxDelta = (t) => {
-        const amt = Number(t.amount);
-        if (selectedAsset === 'ALL') {
-          if (t.type === 'income') return amt;
-          if (t.type === 'expense') return -amt;
-          return 0;
-        } else {
-          let delta = 0;
-          if (t.toAsset === selectedAsset) delta += amt;
-          if (t.fromAsset === selectedAsset) delta -= amt;
-          return delta;
-        }
-      };
-
-      // 그래프 전용 필터 적용
-      const sortedTxs = [...state.transactions].filter(matchesChartFilter).sort((a, b) => a.date.localeCompare(b.date));
-
       if (period === 'daily') {
         const range = state.chartDateRange.daily;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${assetLabel})`;
 
-        let currentRunningBal = getInitialAssetSum();
-        sortedTxs.forEach(t => {
+        // 시작일 이전까지의 실제 잔고 누적
+        let runningBal = initialAssetSum;
+        sortedAllTxs.forEach(t => {
           if (t.date < range.start) {
-            currentRunningBal += getTxDelta(t);
+            runningBal += getTrueBalanceDelta(t);
           }
         });
 
-        // 일자별 생성 루프
         let cur = new Date(range.start + 'T00:00:00');
         const endD = new Date(range.end + 'T00:00:00');
 
@@ -1549,37 +1557,39 @@
 
           labels.push(`${Number(m)}.${Number(d)}`);
 
-          const dayTxs = sortedTxs.filter(t => t.date === dayStr);
-          let inc = 0;
-          let exp = 0;
+          const dayAllTxs = sortedAllTxs.filter(t => t.date === dayStr);
 
-          dayTxs.forEach(t => {
-            const amt = Number(t.amount);
-            if (selectedAsset === 'ALL') {
-              if (t.type === 'income') inc += amt;
-              if (t.type === 'expense') exp += amt;
-            } else {
-              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
-              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+          // 1) 수입/지출 막대는 필터 적용
+          let dayInc = 0;
+          let dayExp = 0;
+          dayAllTxs.forEach(t => {
+            if (matchesChartFlowFilter(t, selectedAssets)) {
+              const amt = Number(t.amount);
+              if (t.type === 'income') dayInc += amt;
+              if (t.type === 'expense') dayExp += amt;
             }
-            currentRunningBal += getTxDelta(t);
           });
 
-          incomeData.push(inc);
-          expenseData.push(exp);
-          balanceData.push(currentRunningBal);
+          // 2) 잔액 선은 실제 통장 잔고 변동 누적
+          dayAllTxs.forEach(t => {
+            runningBal += getTrueBalanceDelta(t);
+          });
+
+          incomeData.push(dayInc);
+          expenseData.push(dayExp);
+          balanceData.push(runningBal);
 
           cur.setDate(cur.getDate() + 1);
         }
 
       } else if (period === 'monthly') {
         const range = state.chartDateRange.monthly;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${assetLabel})`;
 
-        let currentRunningBal = getInitialAssetSum();
-        sortedTxs.forEach(t => {
+        let runningBal = initialAssetSum;
+        sortedAllTxs.forEach(t => {
           if (t.date < `${range.start}-01`) {
-            currentRunningBal += getTxDelta(t);
+            runningBal += getTrueBalanceDelta(t);
           }
         });
 
@@ -1593,25 +1603,25 @@
           const mStr = `${cy}-${String(cm).padStart(2, '0')}`;
           labels.push(sy !== ey ? `${String(cy).slice(2)}.${cm}월` : `${cm}월`);
 
-          const monthTxs = sortedTxs.filter(t => t.date.startsWith(mStr));
-          let inc = 0;
-          let exp = 0;
+          const monthAllTxs = sortedAllTxs.filter(t => t.date.startsWith(mStr));
 
-          monthTxs.forEach(t => {
-            const amt = Number(t.amount);
-            if (selectedAsset === 'ALL') {
-              if (t.type === 'income') inc += amt;
-              if (t.type === 'expense') exp += amt;
-            } else {
-              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
-              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+          let mInc = 0;
+          let mExp = 0;
+          monthAllTxs.forEach(t => {
+            if (matchesChartFlowFilter(t, selectedAssets)) {
+              const amt = Number(t.amount);
+              if (t.type === 'income') mInc += amt;
+              if (t.type === 'expense') mExp += amt;
             }
-            currentRunningBal += getTxDelta(t);
           });
 
-          incomeData.push(inc);
-          expenseData.push(exp);
-          balanceData.push(currentRunningBal);
+          monthAllTxs.forEach(t => {
+            runningBal += getTrueBalanceDelta(t);
+          });
+
+          incomeData.push(mInc);
+          expenseData.push(mExp);
+          balanceData.push(runningBal);
 
           cm++;
           if (cm > 12) {
@@ -1622,12 +1632,12 @@
 
       } else {
         const range = state.chartDateRange.yearly;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start}년 ~ ${range.end}년 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
+        document.getElementById('chartSubtitleInfo').innerText = `${range.start}년 ~ ${range.end}년 (${assetLabel})`;
 
-        let currentRunningBal = getInitialAssetSum();
-        sortedTxs.forEach(t => {
+        let runningBal = initialAssetSum;
+        sortedAllTxs.forEach(t => {
           if (t.date < `${range.start}-01-01`) {
-            currentRunningBal += getTxDelta(t);
+            runningBal += getTrueBalanceDelta(t);
           }
         });
 
@@ -1635,25 +1645,25 @@
           const yStr = String(y);
           labels.push(`${y}년`);
 
-          const yearTxs = sortedTxs.filter(t => t.date.startsWith(yStr));
-          let inc = 0;
-          let exp = 0;
+          const yearAllTxs = sortedAllTxs.filter(t => t.date.startsWith(yStr));
 
-          yearTxs.forEach(t => {
-            const amt = Number(t.amount);
-            if (selectedAsset === 'ALL') {
-              if (t.type === 'income') inc += amt;
-              if (t.type === 'expense') exp += amt;
-            } else {
-              if (t.toAsset === selectedAsset && t.type === 'income') inc += amt;
-              if (t.fromAsset === selectedAsset && t.type === 'expense') exp += amt;
+          let yInc = 0;
+          let yExp = 0;
+          yearAllTxs.forEach(t => {
+            if (matchesChartFlowFilter(t, selectedAssets)) {
+              const amt = Number(t.amount);
+              if (t.type === 'income') yInc += amt;
+              if (t.type === 'expense') yExp += amt;
             }
-            currentRunningBal += getTxDelta(t);
           });
 
-          incomeData.push(inc);
-          expenseData.push(exp);
-          balanceData.push(currentRunningBal);
+          yearAllTxs.forEach(t => {
+            runningBal += getTrueBalanceDelta(t);
+          });
+
+          incomeData.push(yInc);
+          expenseData.push(yExp);
+          balanceData.push(runningBal);
         }
       }
 
