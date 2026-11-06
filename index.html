@@ -16,9 +16,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <style>
-    body { 
+    html, body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       -webkit-tap-highlight-color: transparent; 
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -42,12 +44,11 @@
     }
 
     /* 달력 셀 안 금액 텍스트 강제 한 줄 유지 */
-    .cal-num-wrapper {
-      width: 100%;
-      display: flex;
-      justify-content: flex-end;
-      overflow: hidden;
+    .cal-amount-line {
       white-space: nowrap;
+      display: block;
+      overflow: hidden;
+      text-overflow: clip;
     }
   </style>
 </head>
@@ -102,7 +103,7 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 (보더 라인 완전 밀폐 구조) -->
+        <!-- 날짜 그리드 -->
         <div id="calendarGrid" class="grid grid-cols-7 border-l border-t border-slate-100"></div>
       </div>
 
@@ -775,6 +776,12 @@
         btn.innerText = `${m + 1}월`;
         btn.onclick = () => {
           state.currentDate = new Date(state.pickerYear, m, 1);
+          const now = new Date();
+          if (now.getFullYear() === state.pickerYear && now.getMonth() === m) {
+            state.selectedDate = now.toISOString().slice(0, 10);
+          } else {
+            state.selectedDate = `${state.pickerYear}-${String(m + 1).padStart(2, '0')}-01`;
+          }
           closeModal('monthPickerModal');
           renderAll();
         };
@@ -785,12 +792,22 @@
     function jumpToCurrentMonth() {
       const now = new Date();
       state.currentDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      state.selectedDate = now.toISOString().slice(0, 10);
       closeModal('monthPickerModal');
       renderAll();
     }
 
     function changeMonth(delta) {
+      state.currentDate.setDate(1);
       state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+      const y = state.currentDate.getFullYear();
+      const m = String(state.currentDate.getMonth() + 1).padStart(2, '0');
+      const now = new Date();
+      if (now.getFullYear() === y && now.getMonth() === state.currentDate.getMonth()) {
+        state.selectedDate = now.toISOString().slice(0, 10);
+      } else {
+        state.selectedDate = `${y}-${m}-01`;
+      }
       renderAll();
     }
 
@@ -924,16 +941,17 @@
       renderSettings();
     }
 
-    // [핵심] 글자 수 길이에 따라 CSS scale과 폰트 크기를 동적 압축하는 스타일 생성기
-    function getAmountScaleStyle(text) {
+    // [수정 핵심] 수입/지출/합계 모두 완전히 동일한 폰트 크기 및 자간 템플릿 반환
+    function getAmountStyle(text) {
       const len = text.length;
-      if (len >= 13) return 'transform: scale(0.72); transform-origin: right center; font-size: 8px; letter-spacing: -0.06em;';
-      if (len >= 11) return 'transform: scale(0.82); transform-origin: right center; font-size: 8.5px; letter-spacing: -0.05em;';
-      if (len >= 9)  return 'transform: scale(0.92); transform-origin: right center; font-size: 9px; letter-spacing: -0.03em;';
-      return 'font-size: 9.5px; letter-spacing: -0.01em;';
+      if (len >= 13) return 'font-size: 6.2px; letter-spacing: -0.06em; line-height: 1.15;';
+      if (len >= 11) return 'font-size: 6.9px; letter-spacing: -0.05em; line-height: 1.15;';
+      if (len >= 9)  return 'font-size: 7.9px; letter-spacing: -0.03em; line-height: 1.15;';
+      if (len >= 7)  return 'font-size: 8.8px; letter-spacing: -0.02em; line-height: 1.2;';
+      return 'font-size: 9.5px; line-height: 1.2;';
     }
 
-    // 1. 달력 렌더링 (보더 라인 누락 버그 완벽 수정 및 숫자 동적 스케일 다운)
+    // 1. 달력 렌더링 (수입, 지출, 합계 동일 폰트 크기 및 굵기 적용)
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -943,12 +961,12 @@
       const grid = document.getElementById('calendarGrid');
       grid.innerHTML = '';
 
-      // 1) 전달 빈 칸 채우기
       for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100"></div>`;
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100';
+        grid.appendChild(emptyCell);
       }
 
-      // 2) 이번 달 날짜 채우기
       for (let day = 1; day <= totalDays; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayTxs = state.transactions.filter(t => t.date === dateStr);
@@ -973,9 +991,11 @@
         cell.className = `min-h-[88px] p-1 flex flex-col justify-between cursor-pointer transition select-none border-r border-b border-slate-100 ${
           isSelected ? 'bg-blue-50/80 ring-2 ring-inset ring-blue-500' : 'bg-white hover:bg-slate-50'
         }`;
-        cell.onclick = () => {
+        
+        cell.onclick = (e) => {
           state.selectedDate = dateStr;
-          document.getElementById('txDate').value = dateStr;
+          const txDateInput = document.getElementById('txDate');
+          if (txDateInput) txDateInput.value = dateStr;
           renderCalendar();
           renderSelectedDayList();
         };
@@ -987,17 +1007,17 @@
           const netStr = (net < 0 ? '-' : '') + Math.abs(net).toLocaleString();
 
           txHtml = `
-            <div class="space-y-[1px] text-right w-full overflow-hidden">
-              ${incSum > 0 ? `<div class="cal-num-wrapper"><span class="text-blue-600 font-semibold inline-block" style="${getAmountScaleStyle(incStr)}">${incStr}</span></div>` : ''}
-              ${expSum > 0 ? `<div class="cal-num-wrapper"><span class="text-rose-600 font-semibold inline-block" style="${getAmountScaleStyle(expStr)}">${expStr}</span></div>` : ''}
-              <!-- 일별 합계: 짙은 검정색(text-slate-900)으로 표시 -->
-              <div class="cal-num-wrapper border-t border-slate-100 pt-[1px]"><span class="text-slate-900 font-bold inline-block" style="${getAmountScaleStyle(netStr)}">${netStr}</span></div>
+            <div class="space-y-[1px] text-right w-full overflow-hidden pointer-events-none">
+              ${incSum > 0 ? `<span class="cal-amount-line text-blue-600 font-semibold" style="${getAmountStyle(incStr)}">${incStr}</span>` : ''}
+              ${expSum > 0 ? `<span class="cal-amount-line text-rose-600 font-semibold" style="${getAmountStyle(expStr)}">${expStr}</span>` : ''}
+              <!-- 합계 폰트 굵기를 수입/지출과 완전히 동일한 font-semibold로 통일하여 크기 팽창 방지 -->
+              <span class="cal-amount-line text-slate-900 font-semibold border-t border-slate-100 pt-[1px]" style="${getAmountStyle(netStr)}">${netStr}</span>
             </div>
           `;
         }
 
         cell.innerHTML = `
-          <div class="flex justify-between items-start">
+          <div class="flex justify-between items-start pointer-events-none">
             <span class="text-xs font-semibold ${isSelected ? 'text-blue-700 font-bold' : dateColor}">${day}</span>
           </div>
           ${txHtml}
@@ -1005,15 +1025,16 @@
         grid.appendChild(cell);
       }
 
-      // 3) [핵심 버그 수정] 마지막 주 남은 빈 칸을 7열 끝까지 채워 하단 보더 선이 사라지지 않게 처리
       const totalRenderedCells = firstDay + totalDays;
       const remainingCells = (7 - (totalRenderedCells % 7)) % 7;
       for (let j = 0; j < remainingCells; j++) {
-        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100"></div>`;
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100';
+        grid.appendChild(emptyCell);
       }
     }
 
-    // 선택 날짜 상세 리스트
+    // 선택 날짜 상세 리스트 렌더링 (합계 폰트 크기/굵기를 수입/지출과 동일하게 통일)
     function renderSelectedDayList() {
       document.getElementById('selectedDateTitle').innerText = `${state.selectedDate} 내역`;
       const txs = state.transactions.filter(t => t.date === state.selectedDate);
@@ -1081,14 +1102,15 @@
       const netSign = netSum > 0 ? '+' : '';
       const netColor = netSum > 0 ? 'text-blue-600' : (netSum < 0 ? 'text-rose-600' : 'text-slate-800');
 
+      // 수입, 지출, 합계의 라벨과 숫자 굵기(font-bold) 및 크기(text-[11px])를 동일하게 일치
       summaryEl.innerHTML = `
         ${incTotal > 0 ? `<div class="text-slate-500 font-medium">수입 <span class="font-bold text-blue-600">+${incTotal.toLocaleString()}원</span></div>` : ''}
         ${expTotal > 0 ? `<div class="text-slate-500 font-medium">지출 <span class="font-bold text-rose-600">-${expTotal.toLocaleString()}원</span></div>` : ''}
-        <div class="text-slate-600 font-semibold border-t border-slate-100 pt-0.5">합계 <span class="font-extrabold ${netColor}">${netSign}${netSum.toLocaleString()}원</span></div>
+        <div class="text-slate-500 font-medium border-t border-slate-100 pt-0.5">합계 <span class="font-bold ${netColor}">${netSign}${netSum.toLocaleString()}원</span></div>
       `;
     }
 
-    // 2. 내역 탭 (다중 체크박스 필터링 및 필터링된 합계 요약)
+    // 2. 내역 탭 (다중 체크박스 필터링 및 합계 요약)
     function renderListView() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
@@ -1182,7 +1204,7 @@
       }).join('');
     }
 
-    // --- [다중 체크박스 필터 모달 로직] ---
+    // 상세 필터 모달
     function openFilterModal() {
       const memberContainer = document.getElementById('filterGroup-member');
       memberContainer.innerHTML = state.members.map(m => `
