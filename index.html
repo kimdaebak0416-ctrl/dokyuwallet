@@ -40,6 +40,14 @@
       user-select: none;
       -webkit-user-select: none;
     }
+
+    /* 달력 셀 안 긴 금액을 한 줄로 표시하기 위한 유동적 축소 폰트 */
+    .cal-amount {
+      white-space: nowrap;
+      letter-spacing: -0.05em;
+      font-size: clamp(7.5px, 2.2vw, 9.5px);
+      line-height: 1.15;
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 pb-28">
@@ -68,7 +76,7 @@
   <!-- 메인 탭 컨테이너 -->
   <main class="max-w-xl mx-auto p-2 space-y-2">
 
-    <!-- 1. 달력 탭 -->
+    <!-- 1. 달력 탭 (상단 요약 바 제거 & 높이 88px로 확장 및 숫자 풀표기) -->
     <section id="tab-calendar" class="space-y-2">
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 overflow-hidden">
         
@@ -82,24 +90,8 @@
           <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-sm">&gt;</button>
         </div>
 
-        <!-- 월간 종합 요약 바 -->
-        <div class="grid grid-cols-3 text-center py-1.5 bg-slate-50 border-b border-slate-200 text-xs">
-          <div>
-            <span class="text-[10px] text-slate-400 block font-medium">수입</span>
-            <span class="text-xs font-bold text-blue-600" id="monthSumIncome">0</span>
-          </div>
-          <div class="border-x border-slate-200">
-            <span class="text-[10px] text-slate-400 block font-medium">지출</span>
-            <span class="text-xs font-bold text-rose-600" id="monthSumExpense">0</span>
-          </div>
-          <div>
-            <span class="text-[10px] text-slate-400 block font-medium">합계</span>
-            <span class="text-xs font-bold text-slate-700" id="monthSumNet">0</span>
-          </div>
-        </div>
-
         <!-- 요일 헤더 -->
-        <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 py-1 border-b border-slate-100">
+        <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 py-1.5 border-b border-slate-100">
           <div class="text-rose-500">일</div>
           <div>월</div>
           <div>화</div>
@@ -109,7 +101,7 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 -->
+        <!-- 날짜 그리드 (세로 높이 min-h-[88px]로 확장) -->
         <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
       </div>
 
@@ -126,7 +118,7 @@
       </div>
     </section>
 
-    <!-- 2. 내역 탭 -->
+    <!-- 2. 내역 탭 (필터 요약 바 & 다중 체크박스 필터 버튼) -->
     <section id="tab-list" class="space-y-2 hidden">
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-2.5 space-y-2">
         <div class="flex justify-between items-center px-1">
@@ -138,19 +130,33 @@
           <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-xs">&gt;</button>
         </div>
         
-        <div class="grid grid-cols-2 gap-1.5">
-          <select id="listTypeFilter" onchange="renderListView()" class="bg-slate-50 border border-slate-200 rounded text-xs px-2 py-1.5">
-            <option value="ALL">전체 유형</option>
-            <option value="expense">지출만</option>
-            <option value="income">수입만</option>
-            <option value="transfer">이체만</option>
-          </select>
-          <select id="listMemberFilter" onchange="renderListView()" class="bg-slate-50 border border-slate-200 rounded text-xs px-2 py-1.5">
-            <option value="ALL">전체 구성원</option>
-          </select>
+        <!-- 상세 필터 열기 버튼 및 활성 필터 요약 -->
+        <div class="flex items-center gap-2">
+          <button onclick="openFilterModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold shadow-xs transition shrink-0">
+            <span>⚙️ 필터 설정</span>
+            <span id="filterActiveBadge" class="bg-blue-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold hidden">0</span>
+          </button>
+          <div id="filterSummaryText" class="text-[11px] text-slate-500 truncate flex-1">전체 내역 조회 중</div>
+        </div>
+
+        <!-- 필터링된 결과의 수입 / 지출 / 합계 요약 바 (달력에서 옮겨옴) -->
+        <div class="grid grid-cols-3 text-center py-1.5 bg-slate-50 border border-slate-200 rounded text-xs">
+          <div>
+            <span class="text-[10px] text-slate-400 block font-medium">수입</span>
+            <span class="text-xs font-bold text-blue-600" id="listFilteredIncome">0원</span>
+          </div>
+          <div class="border-x border-slate-200">
+            <span class="text-[10px] text-slate-400 block font-medium">지출</span>
+            <span class="text-xs font-bold text-rose-600" id="listFilteredExpense">0원</span>
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 block font-medium">합계</span>
+            <span class="text-xs font-bold text-slate-700" id="listFilteredNet">0원</span>
+          </div>
         </div>
       </div>
 
+      <!-- 내역 리스트 -->
       <div id="fullTransactionList" class="bg-white rounded-lg shadow-xs border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
@@ -241,12 +247,12 @@
     <!-- 5. 설정 탭 -->
     <section id="tab-settings" class="space-y-2.5 hidden">
       
-      <!-- 1) 구성원 관리 (최상단 배치, 드래그 순서 변경) -->
+      <!-- 1) 구성원 관리 -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2">
         <div class="flex justify-between items-center">
           <div>
             <h3 class="text-xs font-bold text-slate-800">구성원 관리</h3>
-            <p class="text-[10px] text-slate-400">가계부를 함께 쓰는 구성원(남편, 아내 등)을 관리하고 핸들(≡)로 순서를 변경하세요.</p>
+            <p class="text-[10px] text-slate-400">가계부를 함께 쓰는 구성원을 관리하고 핸들(≡)로 순서를 변경하세요.</p>
           </div>
         </div>
         <div class="flex gap-1.5">
@@ -348,6 +354,77 @@
     </button>
   </nav>
 
+  <!-- [신규 기능] 내역 다중 선택 체크박스 필터 모달 -->
+  <div id="filterModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-4 space-y-3.5 max-h-[85vh] overflow-y-auto">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900">상세 내역 필터</h3>
+        <div class="flex items-center gap-2">
+          <button onclick="resetAllFilters()" class="text-xs text-rose-500 font-semibold">초기화</button>
+          <button onclick="closeModal('filterModal')" class="text-slate-400 hover:text-slate-600 text-base font-bold">✕</button>
+        </div>
+      </div>
+
+      <!-- 1) 유형 필터 -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+          <span>거래 유형</span>
+          <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="filter-all-type" onchange="toggleSelectAllGroup('type', this.checked)" class="rounded text-blue-600"> 전체
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-xs" id="filterGroup-type">
+          <label class="flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded cursor-pointer">
+            <input type="checkbox" value="expense" name="f-type" onchange="syncGroupAllCheckbox('type')" class="rounded text-blue-600"> 지출
+          </label>
+          <label class="flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded cursor-pointer">
+            <input type="checkbox" value="income" name="f-type" onchange="syncGroupAllCheckbox('type')" class="rounded text-blue-600"> 수입
+          </label>
+          <label class="flex items-center gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded cursor-pointer">
+            <input type="checkbox" value="transfer" name="f-type" onchange="syncGroupAllCheckbox('type')" class="rounded text-blue-600"> 이체
+          </label>
+        </div>
+      </div>
+
+      <!-- 2) 구성원 필터 -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+          <span>구성원</span>
+          <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="filter-all-member" onchange="toggleSelectAllGroup('member', this.checked)" class="rounded text-blue-600"> 전체
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-xs" id="filterGroup-member"></div>
+      </div>
+
+      <!-- 3) 자산 필터 -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+          <span>자산 (출금/입금 계좌)</span>
+          <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="filter-all-asset" onchange="toggleSelectAllGroup('asset', this.checked)" class="rounded text-blue-600"> 전체
+          </label>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5 text-xs max-h-36 overflow-y-auto" id="filterGroup-asset"></div>
+      </div>
+
+      <!-- 4) 카테고리 필터 -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
+          <span>카테고리</span>
+          <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="filter-all-category" onchange="toggleSelectAllGroup('category', this.checked)" class="rounded text-blue-600"> 전체
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-xs max-h-40 overflow-y-auto" id="filterGroup-category"></div>
+      </div>
+
+      <button onclick="applyFiltersAndClose()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded text-xs transition mt-2">
+        필터 적용하기
+      </button>
+    </div>
+  </div>
+
   <!-- 연·월 고속 이동 팝업 픽커 모달 -->
   <div id="monthPickerModal" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-slate-900 text-white w-full max-w-xs rounded-xl p-4 shadow-2xl space-y-3">
@@ -369,7 +446,7 @@
     </div>
   </div>
 
-  <!-- 거래 추가 / 수정 모달 (구성원 선택 필드 포함) -->
+  <!-- 거래 추가 / 수정 모달 -->
   <div id="txModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-4 space-y-3 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -499,7 +576,7 @@
       measurementId: "G-E1M0XZMYT6"
     };
 
-    const DEFAULT_MEMBERS = ['남편', '아내'];
+    const DEFAULT_MEMBERS = ['공동', '됴', '뀨'];
     const DEFAULT_ASSET_CATEGORIES = ['생활비', '비상금', '투자', '부동산'];
 
     const DEFAULT_CATEGORIES = {
@@ -528,6 +605,13 @@
       chartVisibility: { income: false, expense: false, balance: true },
       chartInstance: null,
       sortableInstances: [],
+      // 다중 선택 필터 상태 (배열이 비어있으면 전체 선택으로 간주)
+      filters: {
+        types: [],
+        members: [],
+        assets: [],
+        categories: []
+      },
       isFirebaseReady: false,
       db: null
     };
@@ -574,7 +658,6 @@
         state.db = firebase.firestore();
         state.isFirebaseReady = true;
 
-        // 거래 내역 리스너
         state.db.collection('transactions').onSnapshot(snapshot => {
           state.transactions = snapshot.docs.map(doc => doc.data());
           localStorage.setItem('budget_txs', JSON.stringify(state.transactions));
@@ -582,7 +665,6 @@
           renderAll();
         }, err => console.error('거래 내역 동기화 오류:', err));
 
-        // 자산 목록 리스너
         state.db.collection('assets').onSnapshot(async snapshot => {
           if (!snapshot.empty) {
             state.assets = snapshot.docs.map(doc => doc.data());
@@ -596,7 +678,6 @@
           }
         }, err => console.error('자산 동기화 오류:', err));
 
-        // 구성원 목록 리스너
         state.db.collection('settings').doc('members').onSnapshot(doc => {
           if (doc.exists && doc.data().list) {
             state.members = doc.data().list;
@@ -609,7 +690,6 @@
           }
         });
 
-        // 지출/수입 카테고리 리스너
         state.db.collection('settings').doc('categories').onSnapshot(doc => {
           if (doc.exists) {
             state.categories = doc.data();
@@ -621,7 +701,6 @@
           }
         });
 
-        // 자산 분류 리스너
         state.db.collection('settings').doc('assetCategories').onSnapshot(async doc => {
           if (doc.exists && doc.data().list) {
             state.assetCategories = doc.data().list;
@@ -723,19 +802,6 @@
       renderAll();
     }
 
-    function formatCellAmount(num) {
-      const abs = Math.abs(num);
-      if (abs >= 100000000) {
-        return (abs / 100000000).toFixed(1).replace(/\.0$/, '') + '억';
-      } else if (abs >= 10000) {
-        const val = (abs / 10000);
-        return (val >= 100 ? Math.round(val) : val.toFixed(1).replace(/\.0$/, '')) + '만';
-      } else if (abs >= 1000) {
-        return (abs / 1000).toFixed(0) + '천';
-      }
-      return abs.toString();
-    }
-
     function updateDescriptionAutocomplete() {
       const listEl = document.getElementById('descAutocompleteList');
       if (!listEl) return;
@@ -743,21 +809,12 @@
       listEl.innerHTML = descs.slice(0, 50).map(d => `<option value="${d}">`).join('');
     }
 
-    // 구성원 드롭다운 갱신
     function updateMemberSelects() {
       const txMemberSelect = document.getElementById('txMember');
       if (txMemberSelect) {
         const curVal = txMemberSelect.value;
         txMemberSelect.innerHTML = state.members.map(m => `<option value="${m}">${m}</option>`).join('');
         if (state.members.includes(curVal)) txMemberSelect.value = curVal;
-      }
-
-      const listFilter = document.getElementById('listMemberFilter');
-      if (listFilter) {
-        const curFilter = listFilter.value;
-        listFilter.innerHTML = `<option value="ALL">전체 구성원</option>` + 
-          state.members.map(m => `<option value="${m}">${m}</option>`).join('');
-        if (curFilter === 'ALL' || state.members.includes(curFilter)) listFilter.value = curFilter;
       }
     }
 
@@ -875,7 +932,7 @@
       renderSettings();
     }
 
-    // 1. 달력 렌더링
+    // 1. 달력 렌더링 (요약 바 삭제, 셀 높이 88px, 금액 333,333 포맷 그대로 한 줄 표기)
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -885,11 +942,8 @@
       const grid = document.getElementById('calendarGrid');
       grid.innerHTML = '';
 
-      let mIncTotal = 0;
-      let mExpTotal = 0;
-
       for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div class="min-h-[74px] bg-slate-50/50"></div>`;
+        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/50"></div>`;
       }
 
       for (let day = 1; day <= totalDays; day++) {
@@ -903,9 +957,6 @@
           if (t.type === 'expense') expSum += Number(t.amount);
         });
 
-        mIncTotal += incSum;
-        mExpTotal += expSum;
-
         const net = incSum - expSum;
         const hasTx = incSum > 0 || expSum > 0;
         const isSelected = state.selectedDate === dateStr;
@@ -916,7 +967,7 @@
         if (dayOfWeek === 6) dateColor = 'text-blue-500';
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[74px] p-1 flex flex-col justify-between cursor-pointer transition select-none ${
+        cell.className = `min-h-[88px] p-1 flex flex-col justify-between cursor-pointer transition select-none ${
           isSelected ? 'bg-blue-50/80 ring-2 ring-inset ring-blue-500' : 'bg-white hover:bg-slate-50'
         }`;
         cell.onclick = () => {
@@ -926,16 +977,17 @@
           renderSelectedDayList();
         };
 
+        // 전체 숫자를 쉼표 포맷으로 한 줄에 축소 표시
         let txHtml = '';
         if (hasTx) {
           const netSign = net > 0 ? '+' : (net < 0 ? '-' : '');
           const netColor = net > 0 ? 'text-blue-600' : (net < 0 ? 'text-rose-600' : 'text-slate-500');
 
           txHtml = `
-            <div class="space-y-[1px] text-[10px] leading-tight text-right w-full font-semibold">
-              ${incSum > 0 ? `<div class="text-blue-600 tracking-tighter">${formatCellAmount(incSum)}</div>` : ''}
-              ${expSum > 0 ? `<div class="text-rose-600 tracking-tighter">${formatCellAmount(expSum)}</div>` : ''}
-              <div class="${netColor} font-bold tracking-tighter border-t border-slate-100 pt-[1px]">${netSign}${formatCellAmount(net)}</div>
+            <div class="space-y-[1px] text-right w-full font-semibold overflow-hidden">
+              ${incSum > 0 ? `<div class="cal-amount text-blue-600 font-bold">+${incSum.toLocaleString()}</div>` : ''}
+              ${expSum > 0 ? `<div class="cal-amount text-rose-600 font-bold">-${expSum.toLocaleString()}</div>` : ''}
+              <div class="cal-amount ${netColor} font-extrabold border-t border-slate-100 pt-[1px]">${netSign}${Math.abs(net).toLocaleString()}</div>
             </div>
           `;
         }
@@ -948,16 +1000,9 @@
         `;
         grid.appendChild(cell);
       }
-
-      document.getElementById('monthSumIncome').innerText = mIncTotal.toLocaleString() + '원';
-      document.getElementById('monthSumExpense').innerText = mExpTotal.toLocaleString() + '원';
-      const mNet = mIncTotal - mExpTotal;
-      const mNetEl = document.getElementById('monthSumNet');
-      mNetEl.innerText = (mNet > 0 ? '+' : '') + mNet.toLocaleString() + '원';
-      mNetEl.className = `text-xs font-bold ${mNet > 0 ? 'text-blue-600' : (mNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
     }
 
-    // 선택 날짜 상세 리스트 (구성원 배지 포함)
+    // 선택 날짜 상세 리스트
     function renderSelectedDayList() {
       document.getElementById('selectedDateTitle').innerText = `${state.selectedDate} 내역`;
       const txs = state.transactions.filter(t => t.date === state.selectedDate);
@@ -1032,22 +1077,76 @@
       `;
     }
 
-    // 2. 내역 탭 (구성원 필터링 및 뱃지 표시)
+    // 2. 내역 탭 (다중 체크박스 필터링 및 필터링된 합계 요약)
     function renderListView() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
-      const typeFilter = document.getElementById('listTypeFilter').value;
-      const memberFilter = document.getElementById('listMemberFilter') ? document.getElementById('listMemberFilter').value : 'ALL';
 
+      // 1차: 해당 월 데이터
       let filtered = state.transactions.filter(t => t.date.startsWith(monthStr));
-      if (typeFilter !== 'ALL') filtered = filtered.filter(t => t.type === typeFilter);
-      if (memberFilter !== 'ALL') filtered = filtered.filter(t => (t.member || '') === memberFilter);
+
+      // 2차: 유형 필터 (배열에 값이 있으면 해당 값들만 허용)
+      if (state.filters.types.length > 0) {
+        filtered = filtered.filter(t => state.filters.types.includes(t.type));
+      }
+
+      // 3차: 구성원 필터
+      if (state.filters.members.length > 0) {
+        filtered = filtered.filter(t => state.filters.members.includes(t.member || '공동'));
+      }
+
+      // 4차: 자산 필터 (출금자산 또는 입금자산이 선택된 자산에 포함)
+      if (state.filters.assets.length > 0) {
+        filtered = filtered.filter(t => {
+          return (t.fromAsset && state.filters.assets.includes(t.fromAsset)) ||
+                 (t.toAsset && state.filters.assets.includes(t.toAsset));
+        });
+      }
+
+      // 5차: 카테고리 필터
+      if (state.filters.categories.length > 0) {
+        filtered = filtered.filter(t => state.filters.categories.includes(t.category));
+      }
 
       filtered.sort((a, b) => b.date.localeCompare(a.date));
 
+      // 필터링된 결과의 수입/지출/합계 집계
+      let fInc = 0;
+      let fExp = 0;
+      filtered.forEach(t => {
+        const amt = Number(t.amount);
+        if (t.type === 'income') fInc += amt;
+        if (t.type === 'expense') fExp += amt;
+      });
+
+      const fNet = fInc - fExp;
+      document.getElementById('listFilteredIncome').innerText = `+${fInc.toLocaleString()}원`;
+      document.getElementById('listFilteredExpense').innerText = `-${fExp.toLocaleString()}원`;
+      const netEl = document.getElementById('listFilteredNet');
+      netEl.innerText = `${fNet > 0 ? '+' : ''}${fNet.toLocaleString()}원`;
+      netEl.className = `text-xs font-bold ${fNet > 0 ? 'text-blue-600' : (fNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
+
+      // 활성 필터 개수 및 텍스트 표시
+      const activeFilterCount = (state.filters.types.length > 0 ? 1 : 0) +
+                                (state.filters.members.length > 0 ? 1 : 0) +
+                                (state.filters.assets.length > 0 ? 1 : 0) +
+                                (state.filters.categories.length > 0 ? 1 : 0);
+      
+      const badgeEl = document.getElementById('filterActiveBadge');
+      const summaryTextEl = document.getElementById('filterSummaryText');
+
+      if (activeFilterCount > 0) {
+        badgeEl.innerText = activeFilterCount;
+        badgeEl.classList.remove('hidden');
+        summaryTextEl.innerText = `필터 적용 중 (${filtered.length}건)`;
+      } else {
+        badgeEl.classList.add('hidden');
+        summaryTextEl.innerText = `전체 내역 (${filtered.length}건)`;
+      }
+
       const container = document.getElementById('fullTransactionList');
       if (filtered.length === 0) {
-        container.innerHTML = `<p class="p-6 text-center text-xs text-slate-400">${year}년 ${state.currentDate.getMonth() + 1}월 내역이 없습니다.</p>`;
+        container.innerHTML = `<p class="p-6 text-center text-xs text-slate-400">조건에 맞는 내역이 없습니다.</p>`;
         return;
       }
 
@@ -1077,6 +1176,100 @@
           </div>
         `;
       }).join('');
+    }
+
+    // --- [다중 체크박스 필터 모달 로직] ---
+    function openFilterModal() {
+      // 1) 구성원 목록 렌더링
+      const memberContainer = document.getElementById('filterGroup-member');
+      memberContainer.innerHTML = state.members.map(m => `
+        <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer truncate">
+          <input type="checkbox" value="${m}" name="f-member" onchange="syncGroupAllCheckbox('member')" class="rounded text-blue-600">
+          <span class="truncate">${m}</span>
+        </label>
+      `).join('');
+
+      // 2) 자산 목록 렌더링
+      const assetContainer = document.getElementById('filterGroup-asset');
+      const validAssets = state.assets.filter(a => state.assetCategories.includes(a.type));
+      assetContainer.innerHTML = validAssets.map(a => `
+        <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer truncate">
+          <input type="checkbox" value="${a.name}" name="f-asset" onchange="syncGroupAllCheckbox('asset')" class="rounded text-blue-600">
+          <span class="truncate">${a.name}</span>
+        </label>
+      `).join('');
+
+      // 3) 카테고리 목록 렌더링 (지출 + 수입)
+      const allCats = Array.from(new Set([...(state.categories.expense || []), ...(state.categories.income || [])]));
+      const catContainer = document.getElementById('filterGroup-category');
+      catContainer.innerHTML = allCats.map(c => `
+        <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer truncate">
+          <input type="checkbox" value="${c}" name="f-category" onchange="syncGroupAllCheckbox('category')" class="rounded text-blue-600">
+          <span class="truncate">${c}</span>
+        </label>
+      `).join('');
+
+      // 현재 state.filters 상태를 모달 체크박스에 반영
+      restoreFilterCheckboxes('type', state.filters.types);
+      restoreFilterCheckboxes('member', state.filters.members);
+      restoreFilterCheckboxes('asset', state.filters.assets);
+      restoreFilterCheckboxes('category', state.filters.categories);
+
+      openModal('filterModal');
+    }
+
+    function restoreFilterCheckboxes(groupKey, selectedArray) {
+      const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
+      if (selectedArray.length === 0) {
+        // 비어있으면 "전체"로 간주하여 모두 체크
+        cbs.forEach(cb => cb.checked = true);
+        document.getElementById(`filter-all-${groupKey}`).checked = true;
+      } else {
+        cbs.forEach(cb => {
+          cb.checked = selectedArray.includes(cb.value);
+        });
+        syncGroupAllCheckbox(groupKey);
+      }
+    }
+
+    function toggleSelectAllGroup(groupKey, isChecked) {
+      const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
+      cbs.forEach(cb => cb.checked = isChecked);
+    }
+
+    function syncGroupAllCheckbox(groupKey) {
+      const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
+      const allChecked = Array.from(cbs).every(cb => cb.checked);
+      document.getElementById(`filter-all-${groupKey}`).checked = allChecked;
+    }
+
+    function applyFiltersAndClose() {
+      const getSelected = (groupKey) => {
+        const cbs = Array.from(document.querySelectorAll(`input[name="f-${groupKey}"]`));
+        const allChecked = cbs.every(cb => cb.checked);
+        // 전부 체크되어 있거나 전부 체크 해제되어 있으면 필터 없음(전체)으로 취급
+        if (allChecked || cbs.every(cb => !cb.checked)) return [];
+        return cbs.filter(cb => cb.checked).map(cb => cb.value);
+      };
+
+      state.filters.types = getSelected('type');
+      state.filters.members = getSelected('member');
+      state.filters.assets = getSelected('asset');
+      state.filters.categories = getSelected('category');
+
+      closeModal('filterModal');
+      renderListView();
+    }
+
+    function resetAllFilters() {
+      ['type', 'member', 'asset', 'category'].forEach(g => {
+        toggleSelectAllGroup(g, true);
+        const allCb = document.getElementById(`filter-all-${g}`);
+        if (allCb) allCb.checked = true;
+      });
+      state.filters = { types: [], members: [], assets: [], categories: [] };
+      closeModal('filterModal');
+      renderListView();
     }
 
     // 3. 통계 탭
@@ -1426,12 +1619,12 @@
       });
     }
 
-    // 5. 설정 탭 렌더링 (순서: 구성원 -> 자산분류 -> 전체자산 -> 지출카테고리 -> 수입카테고리 -> CSV)
+    // 5. 설정 탭 렌더링
     function renderSettings() {
       state.sortableInstances.forEach(inst => inst.destroy());
       state.sortableInstances = [];
 
-      // 1) 구성원 관리 리스트 (드래그 지원)
+      // 1) 구성원 관리 리스트
       const memberListEl = document.getElementById('settingsMemberList');
       if (memberListEl) {
         memberListEl.innerHTML = state.members.map(m => `
@@ -1495,7 +1688,7 @@
         state.sortableInstances.push(catSortable);
       }
 
-      // 3) 전체 자산 관리 (정상 분류 자산만 표시)
+      // 3) 전체 자산 관리
       const groupListEl = document.getElementById('settingsGroupedAssetList');
       if (groupListEl) {
         sortAssets();
@@ -1606,7 +1799,6 @@
       }
     }
 
-    // --- [구성원 관리 함수] ---
     async function addMember() {
       const input = document.getElementById('newMemberInput');
       const val = input.value.trim();
@@ -1628,7 +1820,6 @@
       if (idx !== -1) {
         state.members[idx] = trimmed;
 
-        // 기존 거래 내역의 작성자명도 일괄 업데이트
         state.transactions.forEach(t => {
           if (t.member === oldName) t.member = trimmed;
         });
@@ -1670,7 +1861,6 @@
       renderAll();
     }
 
-    // --- [자산 분류 관리 함수] ---
     async function addAssetCategory() {
       const input = document.getElementById('newAssetCatInput');
       const val = input.value.trim();
@@ -1752,7 +1942,6 @@
       openModal('assetModal');
     }
 
-    // CSV 내보내기 & 가져오기
     function exportToCSV() {
       if (!state.transactions.length) {
         alert('내보낼 거래 내역이 없습니다.');
@@ -1812,7 +2001,7 @@
             category: (cat || (type === 'transfer' ? '이체' : '기타')).trim(),
             fromAsset: (fromA || '').trim(),
             toAsset: (toA || '').trim(),
-            member: (memberStr || state.members[0] || '남편').trim(),
+            member: (memberStr || state.members[0] || '공동').trim(),
             createdAt: new Date().toISOString()
           });
         }
@@ -1876,7 +2065,7 @@
       state.selectedTxForAction = tx;
 
       document.getElementById('actionModalTitle').innerText = tx.description;
-      document.getElementById('actionModalSubtitle').innerText = `${tx.date} · ${Number(tx.amount).toLocaleString()}원 · ${tx.member || '남편'}`;
+      document.getElementById('actionModalSubtitle').innerText = `${tx.date} · ${Number(tx.amount).toLocaleString()}원 · ${tx.member || '공동'}`;
       openModal('actionModal');
     }
 
@@ -1950,7 +2139,7 @@
       const txData = {
         id: txId,
         date: document.getElementById('txDate').value,
-        member: document.getElementById('txMember').value || (state.members[0] || '남편'),
+        member: document.getElementById('txMember').value || (state.members[0] || '공동'),
         type: type,
         amount: Number(document.getElementById('txAmount').value),
         description: document.getElementById('txDescription').value.trim(),
