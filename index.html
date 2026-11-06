@@ -941,14 +941,20 @@
       renderSettings();
     }
 
-    // [수정 핵심] 수입/지출/합계 모두 완전히 동일한 폰트 크기 및 자간 템플릿 반환
+    // 100만 원 단위(~9,999,999원)까지는 8.5px로 통일, 1,000만 원 이상부터 단계별 축소
     function getAmountStyle(text) {
-      const len = text.length;
-      if (len >= 13) return 'font-size: 6.2px; letter-spacing: -0.06em; line-height: 1.15;';
-      if (len >= 11) return 'font-size: 6.9px; letter-spacing: -0.05em; line-height: 1.15;';
-      if (len >= 9)  return 'font-size: 7.9px; letter-spacing: -0.03em; line-height: 1.15;';
-      if (len >= 7)  return 'font-size: 8.8px; letter-spacing: -0.02em; line-height: 1.2;';
-      return 'font-size: 9.5px; line-height: 1.2;';
+      const numDigits = text.replace(/[^0-9]/g, '').length;
+
+      // 1) 1억 이상 (9자리 이상, 예: 100,000,000)
+      if (numDigits >= 9) {
+        return 'font-size: 6.2px; letter-spacing: -0.06em; line-height: 1.15;';
+      }
+      // 2) 1,000만 원 ~ 9,999만 원 (8자리, 예: 15,000,000)
+      if (numDigits >= 8) {
+        return 'font-size: 7.2px; letter-spacing: -0.04em; line-height: 1.15;';
+      }
+      // 3) 100만 원 단위 이하 (~9,999,999원까지 전체 동일 크기 유지)
+      return 'font-size: 8.5px; letter-spacing: -0.02em; line-height: 1.2;';
     }
 
     // 1. 달력 렌더링 (수입, 지출, 합계 동일 폰트 크기 및 굵기 적용)
@@ -1010,7 +1016,6 @@
             <div class="space-y-[1px] text-right w-full overflow-hidden pointer-events-none">
               ${incSum > 0 ? `<span class="cal-amount-line text-blue-600 font-semibold" style="${getAmountStyle(incStr)}">${incStr}</span>` : ''}
               ${expSum > 0 ? `<span class="cal-amount-line text-rose-600 font-semibold" style="${getAmountStyle(expStr)}">${expStr}</span>` : ''}
-              <!-- 합계 폰트 굵기를 수입/지출과 완전히 동일한 font-semibold로 통일하여 크기 팽창 방지 -->
               <span class="cal-amount-line text-slate-900 font-semibold border-t border-slate-100 pt-[1px]" style="${getAmountStyle(netStr)}">${netStr}</span>
             </div>
           `;
@@ -1034,7 +1039,7 @@
       }
     }
 
-    // 선택 날짜 상세 리스트 렌더링 (합계 폰트 크기/굵기를 수입/지출과 동일하게 통일)
+    // 선택 날짜 상세 리스트 렌더링
     function renderSelectedDayList() {
       document.getElementById('selectedDateTitle').innerText = `${state.selectedDate} 내역`;
       const txs = state.transactions.filter(t => t.date === state.selectedDate);
@@ -1102,7 +1107,6 @@
       const netSign = netSum > 0 ? '+' : '';
       const netColor = netSum > 0 ? 'text-blue-600' : (netSum < 0 ? 'text-rose-600' : 'text-slate-800');
 
-      // 수입, 지출, 합계의 라벨과 숫자 굵기(font-bold) 및 크기(text-[11px])를 동일하게 일치
       summaryEl.innerHTML = `
         ${incTotal > 0 ? `<div class="text-slate-500 font-medium">수입 <span class="font-bold text-blue-600">+${incTotal.toLocaleString()}원</span></div>` : ''}
         ${expTotal > 0 ? `<div class="text-slate-500 font-medium">지출 <span class="font-bold text-rose-600">-${expTotal.toLocaleString()}원</span></div>` : ''}
