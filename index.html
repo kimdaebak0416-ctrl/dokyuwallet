@@ -41,11 +41,11 @@
       -webkit-user-select: none;
     }
 
-    /* 달력 셀 안 긴 금액을 한 줄로 표시하기 위한 유동적 축소 폰트 */
-    .cal-amount {
+    /* 달력 셀 금액 한 줄 유지 스타일 */
+    .cal-amount-line {
       white-space: nowrap;
-      letter-spacing: -0.05em;
-      font-size: clamp(7.5px, 2.2vw, 9.5px);
+      overflow: hidden;
+      display: block;
       line-height: 1.15;
     }
   </style>
@@ -76,7 +76,7 @@
   <!-- 메인 탭 컨테이너 -->
   <main class="max-w-xl mx-auto p-2 space-y-2">
 
-    <!-- 1. 달력 탭 (상단 요약 바 제거 & 높이 88px로 확장 및 숫자 풀표기) -->
+    <!-- 1. 달력 탭 -->
     <section id="tab-calendar" class="space-y-2">
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 overflow-hidden">
         
@@ -101,7 +101,7 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 (세로 높이 min-h-[88px]로 확장) -->
+        <!-- 날짜 그리드 (네모 칸 높이 min-h-[88px]) -->
         <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
       </div>
 
@@ -118,7 +118,7 @@
       </div>
     </section>
 
-    <!-- 2. 내역 탭 (필터 요약 바 & 다중 체크박스 필터 버튼) -->
+    <!-- 2. 내역 탭 -->
     <section id="tab-list" class="space-y-2 hidden">
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-2.5 space-y-2">
         <div class="flex justify-between items-center px-1">
@@ -130,7 +130,6 @@
           <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-xs">&gt;</button>
         </div>
         
-        <!-- 상세 필터 열기 버튼 및 활성 필터 요약 -->
         <div class="flex items-center gap-2">
           <button onclick="openFilterModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold shadow-xs transition shrink-0">
             <span>⚙️ 필터 설정</span>
@@ -139,7 +138,6 @@
           <div id="filterSummaryText" class="text-[11px] text-slate-500 truncate flex-1">전체 내역 조회 중</div>
         </div>
 
-        <!-- 필터링된 결과의 수입 / 지출 / 합계 요약 바 (달력에서 옮겨옴) -->
         <div class="grid grid-cols-3 text-center py-1.5 bg-slate-50 border border-slate-200 rounded text-xs">
           <div>
             <span class="text-[10px] text-slate-400 block font-medium">수입</span>
@@ -156,7 +154,6 @@
         </div>
       </div>
 
-      <!-- 내역 리스트 -->
       <div id="fullTransactionList" class="bg-white rounded-lg shadow-xs border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
@@ -188,7 +185,6 @@
         </div>
       </div>
 
-      <!-- 인터랙티브 그래프 카드 -->
       <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2.5">
         <div class="flex justify-between items-center pb-2 border-b border-slate-100">
           <div>
@@ -354,7 +350,7 @@
     </button>
   </nav>
 
-  <!-- [신규 기능] 내역 다중 선택 체크박스 필터 모달 -->
+  <!-- 상세 필터 모달 -->
   <div id="filterModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-4 space-y-3.5 max-h-[85vh] overflow-y-auto">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -365,7 +361,6 @@
         </div>
       </div>
 
-      <!-- 1) 유형 필터 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>거래 유형</span>
@@ -386,7 +381,6 @@
         </div>
       </div>
 
-      <!-- 2) 구성원 필터 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>구성원</span>
@@ -397,7 +391,6 @@
         <div class="grid grid-cols-3 gap-1.5 text-xs" id="filterGroup-member"></div>
       </div>
 
-      <!-- 3) 자산 필터 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>자산 (출금/입금 계좌)</span>
@@ -408,7 +401,6 @@
         <div class="grid grid-cols-2 gap-1.5 text-xs max-h-36 overflow-y-auto" id="filterGroup-asset"></div>
       </div>
 
-      <!-- 4) 카테고리 필터 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>카테고리</span>
@@ -605,7 +597,6 @@
       chartVisibility: { income: false, expense: false, balance: true },
       chartInstance: null,
       sortableInstances: [],
-      // 다중 선택 필터 상태 (배열이 비어있으면 전체 선택으로 간주)
       filters: {
         types: [],
         members: [],
@@ -932,7 +923,16 @@
       renderSettings();
     }
 
-    // 1. 달력 렌더링 (요약 바 삭제, 셀 높이 88px, 금액 333,333 포맷 그대로 한 줄 표기)
+    // [신규 핵심] 문자열 길이에 따라 글자 크기와 자간을 동적으로 축소하는 스타일 반환
+    function getDynamicFontInlineStyle(text) {
+      const len = text.length;
+      if (len >= 13) return 'font-size: 6.8px; letter-spacing: -0.06em;';
+      if (len >= 11) return 'font-size: 7.6px; letter-spacing: -0.05em;';
+      if (len >= 9)  return 'font-size: 8.5px; letter-spacing: -0.04em;';
+      return 'font-size: 9.5px; letter-spacing: -0.02em;';
+    }
+
+    // 1. 달력 렌더링 (동적 폰트 축소 + 일별 합계 검정색 통일)
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -977,17 +977,18 @@
           renderSelectedDayList();
         };
 
-        // 전체 숫자를 쉼표 포맷으로 한 줄에 축소 표시
         let txHtml = '';
         if (hasTx) {
-          const netSign = net > 0 ? '+' : (net < 0 ? '-' : '');
-          const netColor = net > 0 ? 'text-blue-600' : (net < 0 ? 'text-rose-600' : 'text-slate-500');
+          const incStr = incSum > 0 ? incSum.toLocaleString() : '';
+          const expStr = expSum > 0 ? expSum.toLocaleString() : '';
+          const netStr = (net < 0 ? '-' : '') + Math.abs(net).toLocaleString();
 
           txHtml = `
-            <div class="space-y-[1px] text-right w-full font-semibold overflow-hidden">
-              ${incSum > 0 ? `<div class="cal-amount text-blue-600 font-bold">+${incSum.toLocaleString()}</div>` : ''}
-              ${expSum > 0 ? `<div class="cal-amount text-rose-600 font-bold">-${expSum.toLocaleString()}</div>` : ''}
-              <div class="cal-amount ${netColor} font-extrabold border-t border-slate-100 pt-[1px]">${netSign}${Math.abs(net).toLocaleString()}</div>
+            <div class="space-y-[1px] text-right w-full overflow-hidden">
+              ${incSum > 0 ? `<div class="cal-amount-line text-blue-600 font-semibold" style="${getDynamicFontInlineStyle(incStr)}">${incStr}</div>` : ''}
+              ${expSum > 0 ? `<div class="cal-amount-line text-rose-600 font-semibold" style="${getDynamicFontInlineStyle(expStr)}">${expStr}</div>` : ''}
+              <!-- 일별 합계: 빨강/파랑 대신 검정색(text-slate-900 font-bold)으로 통일 -->
+              <div class="cal-amount-line text-slate-900 font-bold border-t border-slate-100 pt-[1px]" style="${getDynamicFontInlineStyle(netStr)}">${netStr}</div>
             </div>
           `;
         }
@@ -1082,20 +1083,16 @@
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
 
-      // 1차: 해당 월 데이터
       let filtered = state.transactions.filter(t => t.date.startsWith(monthStr));
 
-      // 2차: 유형 필터 (배열에 값이 있으면 해당 값들만 허용)
       if (state.filters.types.length > 0) {
         filtered = filtered.filter(t => state.filters.types.includes(t.type));
       }
 
-      // 3차: 구성원 필터
       if (state.filters.members.length > 0) {
         filtered = filtered.filter(t => state.filters.members.includes(t.member || '공동'));
       }
 
-      // 4차: 자산 필터 (출금자산 또는 입금자산이 선택된 자산에 포함)
       if (state.filters.assets.length > 0) {
         filtered = filtered.filter(t => {
           return (t.fromAsset && state.filters.assets.includes(t.fromAsset)) ||
@@ -1103,14 +1100,12 @@
         });
       }
 
-      // 5차: 카테고리 필터
       if (state.filters.categories.length > 0) {
         filtered = filtered.filter(t => state.filters.categories.includes(t.category));
       }
 
       filtered.sort((a, b) => b.date.localeCompare(a.date));
 
-      // 필터링된 결과의 수입/지출/합계 집계
       let fInc = 0;
       let fExp = 0;
       filtered.forEach(t => {
@@ -1126,7 +1121,6 @@
       netEl.innerText = `${fNet > 0 ? '+' : ''}${fNet.toLocaleString()}원`;
       netEl.className = `text-xs font-bold ${fNet > 0 ? 'text-blue-600' : (fNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
 
-      // 활성 필터 개수 및 텍스트 표시
       const activeFilterCount = (state.filters.types.length > 0 ? 1 : 0) +
                                 (state.filters.members.length > 0 ? 1 : 0) +
                                 (state.filters.assets.length > 0 ? 1 : 0) +
@@ -1180,7 +1174,6 @@
 
     // --- [다중 체크박스 필터 모달 로직] ---
     function openFilterModal() {
-      // 1) 구성원 목록 렌더링
       const memberContainer = document.getElementById('filterGroup-member');
       memberContainer.innerHTML = state.members.map(m => `
         <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer truncate">
@@ -1189,7 +1182,6 @@
         </label>
       `).join('');
 
-      // 2) 자산 목록 렌더링
       const assetContainer = document.getElementById('filterGroup-asset');
       const validAssets = state.assets.filter(a => state.assetCategories.includes(a.type));
       assetContainer.innerHTML = validAssets.map(a => `
@@ -1199,7 +1191,6 @@
         </label>
       `).join('');
 
-      // 3) 카테고리 목록 렌더링 (지출 + 수입)
       const allCats = Array.from(new Set([...(state.categories.expense || []), ...(state.categories.income || [])]));
       const catContainer = document.getElementById('filterGroup-category');
       catContainer.innerHTML = allCats.map(c => `
@@ -1209,7 +1200,6 @@
         </label>
       `).join('');
 
-      // 현재 state.filters 상태를 모달 체크박스에 반영
       restoreFilterCheckboxes('type', state.filters.types);
       restoreFilterCheckboxes('member', state.filters.members);
       restoreFilterCheckboxes('asset', state.filters.assets);
@@ -1221,7 +1211,6 @@
     function restoreFilterCheckboxes(groupKey, selectedArray) {
       const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
       if (selectedArray.length === 0) {
-        // 비어있으면 "전체"로 간주하여 모두 체크
         cbs.forEach(cb => cb.checked = true);
         document.getElementById(`filter-all-${groupKey}`).checked = true;
       } else {
@@ -1247,7 +1236,6 @@
       const getSelected = (groupKey) => {
         const cbs = Array.from(document.querySelectorAll(`input[name="f-${groupKey}"]`));
         const allChecked = cbs.every(cb => cb.checked);
-        // 전부 체크되어 있거나 전부 체크 해제되어 있으면 필터 없음(전체)으로 취급
         if (allChecked || cbs.every(cb => !cb.checked)) return [];
         return cbs.filter(cb => cb.checked).map(cb => cb.value);
       };
