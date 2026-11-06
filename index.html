@@ -171,6 +171,15 @@
           <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-100 rounded font-bold text-slate-600 text-xs">&gt;</button>
         </div>
 
+        <!-- 통계 탭 공용 필터 설정 바 -->
+        <div class="flex items-center gap-2 pt-0.5">
+          <button onclick="openFilterModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-semibold shadow-xs transition shrink-0">
+            <span>⚙️ 필터 설정</span>
+            <span id="statsFilterActiveBadge" class="bg-blue-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-bold hidden">0</span>
+          </button>
+          <div id="statsFilterSummaryText" class="text-[11px] text-slate-500 truncate flex-1">전체 내역 조회 중</div>
+        </div>
+
         <div class="grid grid-cols-3 gap-1.5 text-center pt-0.5">
           <div class="bg-blue-50 p-2 rounded">
             <span class="text-[10px] text-blue-600 block font-medium">수입</span>
@@ -352,7 +361,7 @@
     </button>
   </nav>
 
-  <!-- 상세 필터 모달 -->
+  <!-- 상세 필터 모달 (지출/수입 카테고리 분리 적용) -->
   <div id="filterModal" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 hidden">
     <div class="bg-white w-full max-w-md rounded-t-2xl sm:rounded-xl p-4 space-y-3.5 max-h-[85vh] overflow-y-auto">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -363,6 +372,7 @@
         </div>
       </div>
 
+      <!-- 거래 유형 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>거래 유형</span>
@@ -383,6 +393,7 @@
         </div>
       </div>
 
+      <!-- 구성원 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>구성원</span>
@@ -393,6 +404,7 @@
         <div class="grid grid-cols-3 gap-1.5 text-xs" id="filterGroup-member"></div>
       </div>
 
+      <!-- 자산 -->
       <div class="space-y-1.5">
         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
           <span>자산 (출금/입금 계좌)</span>
@@ -403,14 +415,26 @@
         <div class="grid grid-cols-2 gap-1.5 text-xs max-h-36 overflow-y-auto" id="filterGroup-asset"></div>
       </div>
 
+      <!-- 지출 카테고리 -->
       <div class="space-y-1.5">
-        <div class="flex justify-between items-center text-xs font-bold text-slate-700">
-          <span>카테고리</span>
+        <div class="flex justify-between items-center text-xs font-bold text-rose-700">
+          <span>지출 카테고리</span>
           <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" id="filter-all-category" onchange="toggleSelectAllGroup('category', this.checked)" class="rounded text-blue-600"> 전체
+            <input type="checkbox" id="filter-all-catExpense" onchange="toggleSelectAllGroup('catExpense', this.checked)" class="rounded text-blue-600"> 전체
           </label>
         </div>
-        <div class="grid grid-cols-3 gap-1.5 text-xs max-h-40 overflow-y-auto" id="filterGroup-category"></div>
+        <div class="grid grid-cols-3 gap-1.5 text-xs max-h-36 overflow-y-auto" id="filterGroup-catExpense"></div>
+      </div>
+
+      <!-- 수입 카테고리 -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between items-center text-xs font-bold text-blue-700">
+          <span>수입 카테고리</span>
+          <label class="font-normal text-slate-400 flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" id="filter-all-catIncome" onchange="toggleSelectAllGroup('catIncome', this.checked)" class="rounded text-blue-600"> 전체
+          </label>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-xs max-h-36 overflow-y-auto" id="filterGroup-catIncome"></div>
       </div>
 
       <button onclick="applyFiltersAndClose()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded text-xs transition mt-2">
@@ -495,8 +519,9 @@
         </div>
 
         <div>
-          <label class="block text-slate-600 mb-1 font-medium">내용 / 메모 (이전 입력 자동완성)</label>
-          <input type="text" id="txDescription" list="descAutocompleteList" required placeholder="예: 장보기, 점심식사" class="w-full border border-slate-200 rounded p-2">
+          <label class="block text-slate-600 mb-1 font-medium">내용 / 메모 (선택 입력)</label>
+          <!-- required 제거로 빈칸 허용 -->
+          <input type="text" id="txDescription" list="descAutocompleteList" placeholder="미입력 시 카테고리명으로 저장됩니다" class="w-full border border-slate-200 rounded p-2">
           <datalist id="descAutocompleteList"></datalist>
         </div>
 
@@ -603,7 +628,8 @@
         types: [],
         members: [],
         assets: [],
-        categories: []
+        categoriesExpense: [],
+        categoriesIncome: []
       },
       isFirebaseReady: false,
       db: null
@@ -941,23 +967,15 @@
       renderSettings();
     }
 
-    // 100만 원 단위(~9,999,999원)까지는 8.5px로 통일, 1,000만 원 이상부터 단계별 축소
+    // 100만 원 단위(~9,999,999원)까지는 8.5px 통일, 1,000만 원 이상부터 단계별 축소
     function getAmountStyle(text) {
       const numDigits = text.replace(/[^0-9]/g, '').length;
-
-      // 1) 1억 이상 (9자리 이상, 예: 100,000,000)
-      if (numDigits >= 9) {
-        return 'font-size: 6.2px; letter-spacing: -0.06em; line-height: 1.15;';
-      }
-      // 2) 1,000만 원 ~ 9,999만 원 (8자리, 예: 15,000,000)
-      if (numDigits >= 8) {
-        return 'font-size: 7.2px; letter-spacing: -0.04em; line-height: 1.15;';
-      }
-      // 3) 100만 원 단위 이하 (~9,999,999원까지 전체 동일 크기 유지)
+      if (numDigits >= 9) return 'font-size: 6.2px; letter-spacing: -0.06em; line-height: 1.15;';
+      if (numDigits >= 8) return 'font-size: 7.2px; letter-spacing: -0.04em; line-height: 1.15;';
       return 'font-size: 8.5px; letter-spacing: -0.02em; line-height: 1.2;';
     }
 
-    // 1. 달력 렌더링 (수입, 지출, 합계 동일 폰트 크기 및 굵기 적용)
+    // 1. 달력 렌더링
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -1082,6 +1100,7 @@
 
         const info = t.type === 'transfer' ? `${t.fromAsset} ➔ ${t.toAsset}` : (t.category || t.fromAsset || t.toAsset);
         const memberBadge = t.member ? `<span class="px-1 py-0.2 rounded bg-slate-100 text-slate-600 text-[9px] font-medium ml-1">${t.member}</span>` : '';
+        const displayDesc = (t.description || '').trim() || (t.type === 'transfer' ? '이체' : (t.category || '내역'));
 
         return `
           <div onclick="openTxActionModal('${t.id}')" class="py-2 px-1 rounded hover:bg-slate-50 active:bg-slate-100 cursor-pointer flex justify-between items-center transition">
@@ -1089,7 +1108,7 @@
               ${badge}
               <div>
                 <p class="font-semibold text-slate-800 text-xs flex items-center">
-                  <span>${t.description}</span>
+                  <span>${displayDesc}</span>
                   ${memberBadge}
                 </p>
                 <p class="text-[10px] text-slate-400">${info}</p>
@@ -1114,32 +1133,87 @@
       `;
     }
 
+    // 공통 필터링 검사 함수 (내역 탭 및 통계 탭 공유)
+    function matchesFilter(t) {
+      if (state.filters.types.length > 0) {
+        if (!state.filters.types.includes(t.type)) return false;
+      }
+
+      if (state.filters.members.length > 0) {
+        if (!state.filters.members.includes(t.member || '공동')) return false;
+      }
+
+      if (state.filters.assets.length > 0) {
+        const hasAsset = (t.fromAsset && state.filters.assets.includes(t.fromAsset)) ||
+                         (t.toAsset && state.filters.assets.includes(t.toAsset));
+        if (!hasAsset) return false;
+      }
+
+      // 지출 카테고리 필터
+      if (t.type === 'expense') {
+        if (state.filters.categoriesExpense.length > 0) {
+          if (!state.filters.categoriesExpense.includes(t.category)) return false;
+        }
+      }
+
+      // 수입 카테고리 필터
+      if (t.type === 'income') {
+        if (state.filters.categoriesIncome.length > 0) {
+          if (!state.filters.categoriesIncome.includes(t.category)) return false;
+        }
+      }
+
+      return true;
+    }
+
+    // 필터 활성화 배지 및 요약 문구 업데이트 (내역 탭 및 통계 탭 동기화)
+    function updateFilterUI() {
+      const activeFilterCount = (state.filters.types.length > 0 ? 1 : 0) +
+                                (state.filters.members.length > 0 ? 1 : 0) +
+                                (state.filters.assets.length > 0 ? 1 : 0) +
+                                (state.filters.categoriesExpense.length > 0 ? 1 : 0) +
+                                (state.filters.categoriesIncome.length > 0 ? 1 : 0);
+
+      const year = state.currentDate.getFullYear();
+      const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
+      const monthlyTotal = state.transactions.filter(t => t.date.startsWith(monthStr)).length;
+      const filteredCount = state.transactions.filter(t => t.date.startsWith(monthStr) && matchesFilter(t)).length;
+
+      // 내역 탭 필터 UI
+      const listBadge = document.getElementById('filterActiveBadge');
+      const listSummary = document.getElementById('filterSummaryText');
+      if (listBadge && listSummary) {
+        if (activeFilterCount > 0) {
+          listBadge.innerText = activeFilterCount;
+          listBadge.classList.remove('hidden');
+          listSummary.innerText = `필터 적용 중 (${filteredCount}건)`;
+        } else {
+          listBadge.classList.add('hidden');
+          listSummary.innerText = `전체 내역 조회 중 (${monthlyTotal}건)`;
+        }
+      }
+
+      // 통계 탭 필터 UI
+      const statsBadge = document.getElementById('statsFilterActiveBadge');
+      const statsSummary = document.getElementById('statsFilterSummaryText');
+      if (statsBadge && statsSummary) {
+        if (activeFilterCount > 0) {
+          statsBadge.innerText = activeFilterCount;
+          statsBadge.classList.remove('hidden');
+          statsSummary.innerText = `필터 적용 중 (${filteredCount}건 반영)`;
+        } else {
+          statsBadge.classList.add('hidden');
+          statsSummary.innerText = `전체 내역 조회 중 (${monthlyTotal}건 반영)`;
+        }
+      }
+    }
+
     // 2. 내역 탭 (다중 체크박스 필터링 및 합계 요약)
     function renderListView() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
 
-      let filtered = state.transactions.filter(t => t.date.startsWith(monthStr));
-
-      if (state.filters.types.length > 0) {
-        filtered = filtered.filter(t => state.filters.types.includes(t.type));
-      }
-
-      if (state.filters.members.length > 0) {
-        filtered = filtered.filter(t => state.filters.members.includes(t.member || '공동'));
-      }
-
-      if (state.filters.assets.length > 0) {
-        filtered = filtered.filter(t => {
-          return (t.fromAsset && state.filters.assets.includes(t.fromAsset)) ||
-                 (t.toAsset && state.filters.assets.includes(t.toAsset));
-        });
-      }
-
-      if (state.filters.categories.length > 0) {
-        filtered = filtered.filter(t => state.filters.categories.includes(t.category));
-      }
-
+      let filtered = state.transactions.filter(t => t.date.startsWith(monthStr) && matchesFilter(t));
       filtered.sort((a, b) => b.date.localeCompare(a.date));
 
       let fInc = 0;
@@ -1147,6 +1221,7 @@
       filtered.forEach(t => {
         const amt = Number(t.amount);
         if (t.type === 'income') fInc += amt;
+        if (t.type === 'expense') expAmt = amt; // safe fallback
         if (t.type === 'expense') fExp += amt;
       });
 
@@ -1157,22 +1232,7 @@
       netEl.innerText = `${fNet > 0 ? '+' : ''}${fNet.toLocaleString()}원`;
       netEl.className = `text-xs font-bold ${fNet > 0 ? 'text-blue-600' : (fNet < 0 ? 'text-rose-600' : 'text-slate-700')}`;
 
-      const activeFilterCount = (state.filters.types.length > 0 ? 1 : 0) +
-                                (state.filters.members.length > 0 ? 1 : 0) +
-                                (state.filters.assets.length > 0 ? 1 : 0) +
-                                (state.filters.categories.length > 0 ? 1 : 0);
-      
-      const badgeEl = document.getElementById('filterActiveBadge');
-      const summaryTextEl = document.getElementById('filterSummaryText');
-
-      if (activeFilterCount > 0) {
-        badgeEl.innerText = activeFilterCount;
-        badgeEl.classList.remove('hidden');
-        summaryTextEl.innerText = `필터 적용 중 (${filtered.length}건)`;
-      } else {
-        badgeEl.classList.add('hidden');
-        summaryTextEl.innerText = `전체 내역 (${filtered.length}건)`;
-      }
+      updateFilterUI();
 
       const container = document.getElementById('fullTransactionList');
       if (filtered.length === 0) {
@@ -1188,13 +1248,14 @@
         const sign = isExp ? '-' : (isInc ? '+' : '⇄');
         const info = t.type === 'transfer' ? `${t.fromAsset} ➔ ${t.toAsset}` : (t.category || '');
         const memberBadge = t.member ? `<span class="px-1 py-0.2 rounded bg-slate-100 text-slate-600 text-[9px] font-medium ml-1">${t.member}</span>` : '';
+        const displayDesc = (t.description || '').trim() || (t.type === 'transfer' ? '이체' : (t.category || '내역'));
 
         return `
           <div onclick="openTxActionModal('${t.id}')" class="p-2.5 hover:bg-slate-50 active:bg-slate-100 cursor-pointer flex justify-between items-center text-xs transition">
             <div>
               <div class="flex items-center gap-1.5 mb-0.5">
                 <span class="text-slate-400 text-[10px] font-medium">${t.date.slice(5)}</span>
-                <span class="font-semibold text-slate-700">${t.description}</span>
+                <span class="font-semibold text-slate-700">${displayDesc}</span>
                 ${memberBadge}
               </div>
               <div class="text-[10px] text-slate-400">${info}</div>
@@ -1227,11 +1288,20 @@
         </label>
       `).join('');
 
-      const allCats = Array.from(new Set([...(state.categories.expense || []), ...(state.categories.income || [])]));
-      const catContainer = document.getElementById('filterGroup-category');
-      catContainer.innerHTML = allCats.map(c => `
-        <label class="flex items-center gap-1.5 p-1.5 bg-slate-50 border border-slate-200 rounded cursor-pointer truncate">
-          <input type="checkbox" value="${c}" name="f-category" onchange="syncGroupAllCheckbox('category')" class="rounded text-blue-600">
+      const expCats = state.categories.expense || [];
+      const expContainer = document.getElementById('filterGroup-catExpense');
+      expContainer.innerHTML = expCats.map(c => `
+        <label class="flex items-center gap-1.5 p-1.5 bg-rose-50/50 border border-rose-100 rounded cursor-pointer truncate">
+          <input type="checkbox" value="${c}" name="f-catExpense" onchange="syncGroupAllCheckbox('catExpense')" class="rounded text-rose-600">
+          <span class="truncate">${c}</span>
+        </label>
+      `).join('');
+
+      const incCats = state.categories.income || [];
+      const incContainer = document.getElementById('filterGroup-catIncome');
+      incContainer.innerHTML = incCats.map(c => `
+        <label class="flex items-center gap-1.5 p-1.5 bg-blue-50/50 border border-blue-100 rounded cursor-pointer truncate">
+          <input type="checkbox" value="${c}" name="f-catIncome" onchange="syncGroupAllCheckbox('catIncome')" class="rounded text-blue-600">
           <span class="truncate">${c}</span>
         </label>
       `).join('');
@@ -1239,7 +1309,8 @@
       restoreFilterCheckboxes('type', state.filters.types);
       restoreFilterCheckboxes('member', state.filters.members);
       restoreFilterCheckboxes('asset', state.filters.assets);
-      restoreFilterCheckboxes('category', state.filters.categories);
+      restoreFilterCheckboxes('catExpense', state.filters.categoriesExpense);
+      restoreFilterCheckboxes('catIncome', state.filters.categoriesIncome);
 
       openModal('filterModal');
     }
@@ -1248,7 +1319,8 @@
       const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
       if (selectedArray.length === 0) {
         cbs.forEach(cb => cb.checked = true);
-        document.getElementById(`filter-all-${groupKey}`).checked = true;
+        const allCb = document.getElementById(`filter-all-${groupKey}`);
+        if (allCb) allCb.checked = true;
       } else {
         cbs.forEach(cb => {
           cb.checked = selectedArray.includes(cb.value);
@@ -1265,7 +1337,8 @@
     function syncGroupAllCheckbox(groupKey) {
       const cbs = document.querySelectorAll(`input[name="f-${groupKey}"]`);
       const allChecked = Array.from(cbs).every(cb => cb.checked);
-      document.getElementById(`filter-all-${groupKey}`).checked = allChecked;
+      const allCb = document.getElementById(`filter-all-${groupKey}`);
+      if (allCb) allCb.checked = allChecked;
     }
 
     function applyFiltersAndClose() {
@@ -1279,28 +1352,33 @@
       state.filters.types = getSelected('type');
       state.filters.members = getSelected('member');
       state.filters.assets = getSelected('asset');
-      state.filters.categories = getSelected('category');
+      state.filters.categoriesExpense = getSelected('catExpense');
+      state.filters.categoriesIncome = getSelected('catIncome');
 
       closeModal('filterModal');
       renderListView();
+      renderStatsSummary();
+      renderStatsChart();
     }
 
     function resetAllFilters() {
-      ['type', 'member', 'asset', 'category'].forEach(g => {
+      ['type', 'member', 'asset', 'catExpense', 'catIncome'].forEach(g => {
         toggleSelectAllGroup(g, true);
         const allCb = document.getElementById(`filter-all-${g}`);
         if (allCb) allCb.checked = true;
       });
-      state.filters = { types: [], members: [], assets: [], categories: [] };
+      state.filters = { types: [], members: [], assets: [], categoriesExpense: [], categoriesIncome: [] };
       closeModal('filterModal');
       renderListView();
+      renderStatsSummary();
+      renderStatsChart();
     }
 
     // 3. 통계 탭
     function renderStatsSummary() {
       const year = state.currentDate.getFullYear();
       const monthStr = `${year}-${String(state.currentDate.getMonth() + 1).padStart(2, '0')}`;
-      const monthlyTxs = state.transactions.filter(t => t.date.startsWith(monthStr));
+      const monthlyTxs = state.transactions.filter(t => t.date.startsWith(monthStr) && matchesFilter(t));
 
       let inc = 0;
       let exp = 0;
@@ -1313,6 +1391,8 @@
       document.getElementById('statsTotalIncome').innerText = `${inc.toLocaleString()}원`;
       document.getElementById('statsTotalExpense').innerText = `${exp.toLocaleString()}원`;
       document.getElementById('statsNetSavings').innerText = `${(inc - exp).toLocaleString()}원`;
+
+      updateFilterUI();
     }
 
     function setChartPeriod(period) {
@@ -1384,7 +1464,7 @@
         }
       };
 
-      const sortedTxs = [...state.transactions].sort((a, b) => a.date.localeCompare(b.date));
+      const sortedTxs = [...state.transactions].filter(matchesFilter).sort((a, b) => a.date.localeCompare(b.date));
 
       if (period === 'daily') {
         document.getElementById('chartSubtitleInfo').innerText = `${targetYear}년 ${targetMonth}월 일별 (${selectedAsset === 'ALL' ? '전체' : selectedAsset})`;
@@ -2016,13 +2096,16 @@
           if (typeStr === '수입' || typeStr === 'income') type = 'income';
           else if (typeStr === '이체' || typeStr === 'transfer') type = 'transfer';
 
+          const finalCat = (cat || (type === 'transfer' ? '이체' : '기타')).trim();
+          const finalDesc = (desc || '').trim() || finalCat;
+
           newTxs.push({
             id: 'tx_csv_' + Date.now() + '_' + i,
             date: (date || '').trim(),
             type: type,
             amount: Number(amountStr.replace(/[^0-9.-]+/g, '')) || 0,
-            description: (desc || '').trim(),
-            category: (cat || (type === 'transfer' ? '이체' : '기타')).trim(),
+            description: finalDesc,
+            category: finalCat,
             fromAsset: (fromA || '').trim(),
             toAsset: (toA || '').trim(),
             member: (memberStr || state.members[0] || '공동').trim(),
@@ -2088,7 +2171,8 @@
       if (!tx) return;
       state.selectedTxForAction = tx;
 
-      document.getElementById('actionModalTitle').innerText = tx.description;
+      const displayDesc = (tx.description || '').trim() || (tx.type === 'transfer' ? '이체' : (tx.category || '내역'));
+      document.getElementById('actionModalTitle').innerText = displayDesc;
       document.getElementById('actionModalSubtitle').innerText = `${tx.date} · ${Number(tx.amount).toLocaleString()}원 · ${tx.member || '공동'}`;
       openModal('actionModal');
     }
@@ -2107,7 +2191,7 @@
       updateMemberSelects();
       if (tx.member) document.getElementById('txMember').value = tx.member;
       document.getElementById('txAmount').value = tx.amount;
-      document.getElementById('txDescription').value = tx.description;
+      document.getElementById('txDescription').value = tx.description || '';
 
       if (tx.type === 'transfer') {
         document.getElementById('txFromAsset').value = tx.fromAsset || '';
@@ -2134,7 +2218,7 @@
       updateMemberSelects();
       if (tx.member) document.getElementById('txMember').value = tx.member;
       document.getElementById('txAmount').value = tx.amount;
-      document.getElementById('txDescription').value = `${tx.description} (복사)`;
+      document.getElementById('txDescription').value = tx.description ? `${tx.description} (복사)` : '';
 
       if (tx.type === 'transfer') {
         document.getElementById('txFromAsset').value = tx.fromAsset || '';
@@ -2160,14 +2244,19 @@
       const editingId = document.getElementById('editingTxId').value;
       const txId = editingId || ('tx_' + Date.now());
 
+      const chosenCategory = type === 'transfer' ? '이체' : document.getElementById('txCategory').value;
+      let rawDescription = document.getElementById('txDescription').value.trim();
+      // 내용이 비어 있으면 카테고리명(이체인 경우 '이체')으로 자동 지정
+      const finalDescription = rawDescription || chosenCategory;
+
       const txData = {
         id: txId,
         date: document.getElementById('txDate').value,
         member: document.getElementById('txMember').value || (state.members[0] || '공동'),
         type: type,
         amount: Number(document.getElementById('txAmount').value),
-        description: document.getElementById('txDescription').value.trim(),
-        category: type === 'transfer' ? '이체' : document.getElementById('txCategory').value,
+        description: finalDescription,
+        category: chosenCategory,
         fromAsset: type === 'expense' || type === 'transfer' ? (type === 'transfer' ? document.getElementById('txFromAsset').value : document.getElementById('txAsset').value) : '',
         toAsset: type === 'income' || type === 'transfer' ? (type === 'transfer' ? document.getElementById('txToAsset').value : document.getElementById('txAsset').value) : '',
         updatedAt: new Date().toISOString()
