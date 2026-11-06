@@ -41,12 +41,13 @@
       -webkit-user-select: none;
     }
 
-    /* 달력 셀 금액 한 줄 유지 스타일 */
-    .cal-amount-line {
-      white-space: nowrap;
+    /* 달력 셀 안 금액 텍스트 강제 한 줄 유지 */
+    .cal-num-wrapper {
+      width: 100%;
+      display: flex;
+      justify-content: flex-end;
       overflow: hidden;
-      display: block;
-      line-height: 1.15;
+      white-space: nowrap;
     }
   </style>
 </head>
@@ -91,7 +92,7 @@
         </div>
 
         <!-- 요일 헤더 -->
-        <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 py-1.5 border-b border-slate-100">
+        <div class="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-400 py-1.5 border-b border-slate-200 bg-slate-50/50">
           <div class="text-rose-500">일</div>
           <div>월</div>
           <div>화</div>
@@ -101,8 +102,8 @@
           <div class="text-blue-500">토</div>
         </div>
 
-        <!-- 날짜 그리드 (네모 칸 높이 min-h-[88px]) -->
-        <div id="calendarGrid" class="grid grid-cols-7 divide-x divide-y divide-slate-100 border-b border-slate-100"></div>
+        <!-- 날짜 그리드 (보더 라인 완전 밀폐 구조) -->
+        <div id="calendarGrid" class="grid grid-cols-7 border-l border-t border-slate-100"></div>
       </div>
 
       <!-- 선택된 날짜 상세 내역 목록 -->
@@ -923,16 +924,16 @@
       renderSettings();
     }
 
-    // [신규 핵심] 문자열 길이에 따라 글자 크기와 자간을 동적으로 축소하는 스타일 반환
-    function getDynamicFontInlineStyle(text) {
+    // [핵심] 글자 수 길이에 따라 CSS scale과 폰트 크기를 동적 압축하는 스타일 생성기
+    function getAmountScaleStyle(text) {
       const len = text.length;
-      if (len >= 13) return 'font-size: 6.8px; letter-spacing: -0.06em;';
-      if (len >= 11) return 'font-size: 7.6px; letter-spacing: -0.05em;';
-      if (len >= 9)  return 'font-size: 8.5px; letter-spacing: -0.04em;';
-      return 'font-size: 9.5px; letter-spacing: -0.02em;';
+      if (len >= 13) return 'transform: scale(0.72); transform-origin: right center; font-size: 8px; letter-spacing: -0.06em;';
+      if (len >= 11) return 'transform: scale(0.82); transform-origin: right center; font-size: 8.5px; letter-spacing: -0.05em;';
+      if (len >= 9)  return 'transform: scale(0.92); transform-origin: right center; font-size: 9px; letter-spacing: -0.03em;';
+      return 'font-size: 9.5px; letter-spacing: -0.01em;';
     }
 
-    // 1. 달력 렌더링 (동적 폰트 축소 + 일별 합계 검정색 통일)
+    // 1. 달력 렌더링 (보더 라인 누락 버그 완벽 수정 및 숫자 동적 스케일 다운)
     function renderCalendar() {
       const year = state.currentDate.getFullYear();
       const month = state.currentDate.getMonth();
@@ -942,10 +943,12 @@
       const grid = document.getElementById('calendarGrid');
       grid.innerHTML = '';
 
+      // 1) 전달 빈 칸 채우기
       for (let i = 0; i < firstDay; i++) {
-        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/50"></div>`;
+        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100"></div>`;
       }
 
+      // 2) 이번 달 날짜 채우기
       for (let day = 1; day <= totalDays; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayTxs = state.transactions.filter(t => t.date === dateStr);
@@ -967,7 +970,7 @@
         if (dayOfWeek === 6) dateColor = 'text-blue-500';
 
         const cell = document.createElement('div');
-        cell.className = `min-h-[88px] p-1 flex flex-col justify-between cursor-pointer transition select-none ${
+        cell.className = `min-h-[88px] p-1 flex flex-col justify-between cursor-pointer transition select-none border-r border-b border-slate-100 ${
           isSelected ? 'bg-blue-50/80 ring-2 ring-inset ring-blue-500' : 'bg-white hover:bg-slate-50'
         }`;
         cell.onclick = () => {
@@ -985,10 +988,10 @@
 
           txHtml = `
             <div class="space-y-[1px] text-right w-full overflow-hidden">
-              ${incSum > 0 ? `<div class="cal-amount-line text-blue-600 font-semibold" style="${getDynamicFontInlineStyle(incStr)}">${incStr}</div>` : ''}
-              ${expSum > 0 ? `<div class="cal-amount-line text-rose-600 font-semibold" style="${getDynamicFontInlineStyle(expStr)}">${expStr}</div>` : ''}
-              <!-- 일별 합계: 빨강/파랑 대신 검정색(text-slate-900 font-bold)으로 통일 -->
-              <div class="cal-amount-line text-slate-900 font-bold border-t border-slate-100 pt-[1px]" style="${getDynamicFontInlineStyle(netStr)}">${netStr}</div>
+              ${incSum > 0 ? `<div class="cal-num-wrapper"><span class="text-blue-600 font-semibold inline-block" style="${getAmountScaleStyle(incStr)}">${incStr}</span></div>` : ''}
+              ${expSum > 0 ? `<div class="cal-num-wrapper"><span class="text-rose-600 font-semibold inline-block" style="${getAmountScaleStyle(expStr)}">${expStr}</span></div>` : ''}
+              <!-- 일별 합계: 짙은 검정색(text-slate-900)으로 표시 -->
+              <div class="cal-num-wrapper border-t border-slate-100 pt-[1px]"><span class="text-slate-900 font-bold inline-block" style="${getAmountScaleStyle(netStr)}">${netStr}</span></div>
             </div>
           `;
         }
@@ -1000,6 +1003,13 @@
           ${txHtml}
         `;
         grid.appendChild(cell);
+      }
+
+      // 3) [핵심 버그 수정] 마지막 주 남은 빈 칸을 7열 끝까지 채워 하단 보더 선이 사라지지 않게 처리
+      const totalRenderedCells = firstDay + totalDays;
+      const remainingCells = (7 - (totalRenderedCells % 7)) % 7;
+      for (let j = 0; j < remainingCells; j++) {
+        grid.innerHTML += `<div class="min-h-[88px] bg-slate-50/40 border-r border-b border-slate-100"></div>`;
       }
     }
 
