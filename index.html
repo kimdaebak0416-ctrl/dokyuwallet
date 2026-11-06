@@ -159,9 +159,10 @@
       <div id="fullTransactionList" class="bg-white rounded-lg shadow-xs border border-slate-200 divide-y divide-slate-100 overflow-hidden"></div>
     </section>
 
-    <!-- 3. 통계 탭 (중복 드롭다운 제거 & 독립 필터 및 기간 제어 탑재) -->
+    <!-- 3. 통계 탭 (연월일 직접 선택 + 3개월/6개월/1년/올해 빠른 단추 + 필터 상세 표시) -->
     <section id="tab-stats" class="space-y-2 hidden">
-      <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-3">
+      <div class="bg-white rounded-lg shadow-xs border border-slate-200 p-3 space-y-2.5">
+        
         <!-- 1) 헤더 및 주기(일별/월별/연별) 선택 -->
         <div class="flex justify-between items-center pb-2 border-b border-slate-100">
           <div>
@@ -176,13 +177,27 @@
           </div>
         </div>
 
-        <!-- 2) 조회 기간 직접 설정 바 -->
-        <div class="flex items-center gap-1.5 bg-slate-50 p-2 rounded border border-slate-100">
-          <span class="text-[11px] font-semibold text-slate-600 shrink-0">기간:</span>
-          <div id="chartPeriodInputs" class="flex items-center gap-1.5 flex-1"></div>
+        <!-- 2) 조회 기간 (연월일 직접 선택 + 빠른 설정 프리셋 버튼) -->
+        <div class="bg-slate-50 p-2 rounded border border-slate-100 space-y-1.5">
+          <div class="flex items-center justify-between gap-1 flex-wrap">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-semibold text-slate-600 shrink-0">기간:</span>
+              <input type="date" id="chartStartDate" onchange="handleDateRangeInputChange()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
+              <span class="text-xs text-slate-400">~</span>
+              <input type="date" id="chartEndDate" onchange="handleDateRangeInputChange()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
+            </div>
+            
+            <!-- 3개월, 6개월, 1년, 올해 빠른 단추 -->
+            <div class="inline-flex gap-1">
+              <button onclick="applyDatePreset('3m')" class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-semibold text-slate-600 transition shadow-2xs">3개월</button>
+              <button onclick="applyDatePreset('6m')" class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-semibold text-slate-600 transition shadow-2xs">6개월</button>
+              <button onclick="applyDatePreset('1y')" class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-semibold text-slate-600 transition shadow-2xs">1년</button>
+              <button onclick="applyDatePreset('this_year')" class="px-2 py-0.5 bg-white hover:bg-slate-100 border border-slate-200 rounded text-[10px] font-semibold text-slate-600 transition shadow-2xs">올해</button>
+            </div>
+          </div>
         </div>
 
-        <!-- 3) 그래프 필터 버튼 & 수입/지출/잔액 토글 버튼 (자산 선택은 필터 모달로 일원화) -->
+        <!-- 3) 그래프 필터 버튼 & 수입/지출/잔액 토글 버튼 -->
         <div class="flex justify-between items-center pt-1 border-t border-slate-100">
           <button onclick="openFilterModal('chart')" class="flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded text-[11px] font-semibold shadow-xs transition shrink-0">
             <span>⚙️ 그래프 필터</span>
@@ -203,7 +218,10 @@
           </div>
         </div>
 
-        <!-- 4) 차트 캔버스 -->
+        <!-- 4) 그래프 필터 적용 내역 상세 표시 바 -->
+        <div id="chartActiveFilterTags" class="text-[10px] text-slate-500 flex flex-wrap items-center gap-1 bg-slate-50 p-1.5 rounded border border-slate-100 min-h-[26px]"></div>
+
+        <!-- 5) 차트 캔버스 -->
         <div class="relative w-full h-64 pt-1">
           <canvas id="financeChart"></canvas>
         </div>
@@ -588,10 +606,11 @@
     const todayY = todayObj.getFullYear();
     const todayM = String(todayObj.getMonth() + 1).padStart(2, '0');
     const todayD = String(todayObj.getDate()).padStart(2, '0');
+    const todayStr = `${todayY}-${todayM}-${todayD}`;
 
     let state = {
       currentDate: new Date(),
-      selectedDate: new Date().toISOString().slice(0, 10),
+      selectedDate: todayStr,
       currentType: 'expense',
       members: JSON.parse(localStorage.getItem('budget_members')) || DEFAULT_MEMBERS,
       assetCategories: JSON.parse(localStorage.getItem('budget_asset_cats')) || DEFAULT_ASSET_CATEGORIES,
@@ -601,12 +620,11 @@
       selectedTxForAction: null,
       pickerYear: todayY,
       
-      // 차트 전용 독립 설정 (월별 기본값: 올해 1월 ~ 이번 달)
+      // 차트 전용 독립 설정 (기본값: 올해 1월 1일 ~ 오늘)
       chartPeriod: 'monthly',
       chartDateRange: {
-        monthly: { start: `${todayY}-01`, end: `${todayY}-${todayM}` },
-        daily: { start: `${todayY}-${todayM}-01`, end: `${todayY}-${todayM}-${todayD}` },
-        yearly: { start: todayY - 4, end: todayY }
+        start: `${todayY}-01-01`,
+        end: todayStr
       },
       chartVisibility: { income: false, expense: false, balance: true },
       chartInstance: null,
@@ -620,7 +638,7 @@
         categoriesExpense: [],
         categoriesIncome: []
       },
-      // 그래프 전용 독립 필터 (자산 선택 포함)
+      // 그래프 전용 독립 필터
       chartFilters: {
         types: [],
         members: [],
@@ -643,7 +661,7 @@
       updateAssetCategorySelect();
       updateAssetSelects();
       updateDescriptionAutocomplete();
-      renderChartPeriodInputs();
+      initChartDateInputs();
       renderAll();
     });
 
@@ -750,7 +768,7 @@
       if (tabName === 'calendar') renderCalendar();
       if (tabName === 'list') renderListView();
       if (tabName === 'stats') {
-        renderChartPeriodInputs();
+        initChartDateInputs();
         renderStatsChart();
       }
       if (tabName === 'assets') renderAssets();
@@ -1144,13 +1162,12 @@
       return true;
     }
 
-    // 그래프 수입/지출 필터링 검사 함수 (모든 세부 필터 적용)
+    // 그래프 수입/지출 필터링 검사 함수
     function matchesChartFlowFilter(t, selectedAssets) {
       const f = state.chartFilters;
       if (f.types.length > 0 && !f.types.includes(t.type)) return false;
       if (f.members.length > 0 && !f.members.includes(t.member || '공동')) return false;
       
-      // 자산 매칭
       if (selectedAssets.length > 0) {
         const touch = (t.fromAsset && selectedAssets.includes(t.fromAsset)) ||
                       (t.toAsset && selectedAssets.includes(t.toAsset));
@@ -1166,8 +1183,9 @@
       return true;
     }
 
-    // 필터 활성화 배지 업데이트
+    // 필터 활성화 배지 및 하단 태그 업데이트
     function updateFilterUI() {
+      // 1) 내역 탭
       const activeFilterCount = (state.filters.types.length > 0 ? 1 : 0) +
                                 (state.filters.members.length > 0 ? 1 : 0) +
                                 (state.filters.assets.length > 0 ? 1 : 0) +
@@ -1192,6 +1210,7 @@
         }
       }
 
+      // 2) 그래프 필터 배지
       const chartActiveCount = (state.chartFilters.types.length > 0 ? 1 : 0) +
                               (state.chartFilters.members.length > 0 ? 1 : 0) +
                               (state.chartFilters.assets.length > 0 ? 1 : 0) +
@@ -1205,6 +1224,39 @@
           chartBadge.classList.remove('hidden');
         } else {
           chartBadge.classList.add('hidden');
+        }
+      }
+
+      // 3) 그래프 필터 아래 선택된 조건 요약 태그 바 렌더링
+      const tagsContainer = document.getElementById('chartActiveFilterTags');
+      if (tagsContainer) {
+        const cf = state.chartFilters;
+        const tags = [];
+
+        if (cf.types.length > 0) {
+          const typeMap = { expense: '지출', income: '수입', transfer: '이체' };
+          tags.push(`유형: ${cf.types.map(t => typeMap[t] || t).join(', ')}`);
+        }
+        if (cf.members.length > 0) {
+          tags.push(`구성원: ${cf.members.join(', ')}`);
+        }
+        if (cf.assets.length > 0) {
+          tags.push(`자산: ${cf.assets.join(', ')}`);
+        }
+        if (cf.categoriesExpense.length > 0) {
+          tags.push(`지출카테고리: ${cf.categoriesExpense.join(', ')}`);
+        }
+        if (cf.categoriesIncome.length > 0) {
+          tags.push(`수입카테고리: ${cf.categoriesIncome.join(', ')}`);
+        }
+
+        if (tags.length === 0) {
+          tagsContainer.innerHTML = `<span class="text-slate-400">필터 없음 (전체 내역 조회 중)</span>`;
+        } else {
+          tagsContainer.innerHTML = `
+            <span class="font-semibold text-slate-700 shrink-0">선택 필터:</span>
+            ${tags.map(t => `<span class="inline-block bg-white border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded shadow-2xs font-medium">${t}</span>`).join('')}
+          `;
         }
       }
     }
@@ -1388,59 +1440,81 @@
       }
     }
 
-    // 3. 통계 탭: 기간 설정 입력 UI
-    function renderChartPeriodInputs() {
-      const container = document.getElementById('chartPeriodInputs');
-      if (!container) return;
-
-      const p = state.chartPeriod;
-      const range = state.chartDateRange[p];
-
-      if (p === 'daily') {
-        container.innerHTML = `
-          <input type="date" id="chartDailyStart" value="${range.start}" onchange="handleChartRangeInput()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
-          <span class="text-xs text-slate-400">~</span>
-          <input type="date" id="chartDailyEnd" value="${range.end}" onchange="handleChartRangeInput()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
-        `;
-      } else if (p === 'monthly') {
-        container.innerHTML = `
-          <input type="month" id="chartMonthlyStart" value="${range.start}" onchange="handleChartRangeInput()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
-          <span class="text-xs text-slate-400">~</span>
-          <input type="month" id="chartMonthlyEnd" value="${range.end}" onchange="handleChartRangeInput()" class="border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white">
-        `;
-      } else {
-        container.innerHTML = `
-          <input type="number" id="chartYearlyStart" value="${range.start}" min="2000" max="2100" onchange="handleChartRangeInput()" class="w-16 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white text-center">
-          <span class="text-xs text-slate-400">~</span>
-          <input type="number" id="chartYearlyEnd" value="${range.end}" min="2000" max="2100" onchange="handleChartRangeInput()" class="w-16 border border-slate-200 rounded px-1.5 py-0.5 text-xs text-slate-700 bg-white text-center">
-        `;
+    // 3. 통계 탭: 날짜 인풋 초기화 및 프리셋 제어
+    function initChartDateInputs() {
+      const sInput = document.getElementById('chartStartDate');
+      const eInput = document.getElementById('chartEndDate');
+      if (sInput && eInput) {
+        sInput.value = state.chartDateRange.start;
+        eInput.value = state.chartDateRange.end;
       }
     }
 
-    function handleChartRangeInput() {
-      const p = state.chartPeriod;
-      if (p === 'daily') {
-        const s = document.getElementById('chartDailyStart').value;
-        const e = document.getElementById('chartDailyEnd').value;
-        if (s && e && s <= e) {
-          state.chartDateRange.daily = { start: s, end: e };
-          renderStatsChart();
-        }
-      } else if (p === 'monthly') {
-        const s = document.getElementById('chartMonthlyStart').value;
-        const e = document.getElementById('chartMonthlyEnd').value;
-        if (s && e && s <= e) {
-          state.chartDateRange.monthly = { start: s, end: e };
-          renderStatsChart();
-        }
-      } else if (p === 'yearly') {
-        const s = Number(document.getElementById('chartYearlyStart').value);
-        const e = Number(document.getElementById('chartYearlyEnd').value);
-        if (s && e && s <= e) {
-          state.chartDateRange.yearly = { start: s, end: e };
-          renderStatsChart();
-        }
+    function handleDateRangeInputChange() {
+      const s = document.getElementById('chartStartDate').value;
+      const e = document.getElementById('chartEndDate').value;
+      if (s && e && s <= e) {
+        state.chartDateRange.start = s;
+        state.chartDateRange.end = e;
+        renderStatsChart();
       }
+    }
+
+    // 3개월, 6개월, 1년, 올해 빠른 설정 함수 (N개월 전 1일부터 시작)
+    function applyDatePreset(preset) {
+      const now = new Date();
+      const curY = now.getFullYear();
+      const curM = now.getMonth() + 1; // 1-12
+      const endStr = now.toISOString().slice(0, 10);
+
+      let startStr = '';
+
+      if (preset === '3m') {
+        // 당월 포함 3개월 전 1일 (예: 11월 기준 11-2 = 9월 1일)
+        let targetM = curM - 2;
+        let targetY = curY;
+        while (targetM <= 0) {
+          targetM += 12;
+          targetY -= 1;
+        }
+        startStr = `${targetY}-${String(targetM).padStart(2, '0')}-01`;
+
+      } else if (preset === '6m') {
+        // 당월 포함 6개월 전 1일 (예: 11월 기준 11-5 = 6월 1일)
+        let targetM = curM - 5;
+        let targetY = curY;
+        while (targetM <= 0) {
+          targetM += 12;
+          targetY -= 1;
+        }
+        startStr = `${targetY}-${String(targetM).padStart(2, '0')}-01`;
+
+      } else if (preset === '1y') {
+        // 당월 포함 1년(12개월) 전 1일 (예: 11월 기준 11-11 = 작년 12월 1일)
+        let targetM = curM - 11;
+        let targetY = curY;
+        while (targetM <= 0) {
+          targetM += 12;
+          targetY -= 1;
+        }
+        startStr = `${targetY}-${String(targetM).padStart(2, '0')}-01`;
+
+      } else if (preset === 'this_year') {
+        // 올해 1월 1일 ~ 오늘
+        startStr = `${curY}-01-01`;
+      }
+
+      state.chartDateRange.start = startStr;
+      state.chartDateRange.end = endStr;
+
+      const sInput = document.getElementById('chartStartDate');
+      const eInput = document.getElementById('chartEndDate');
+      if (sInput && eInput) {
+        sInput.value = startStr;
+        eInput.value = endStr;
+      }
+
+      renderStatsChart();
     }
 
     function setChartPeriod(period) {
@@ -1453,7 +1527,6 @@
             : 'px-2 py-0.5 rounded text-slate-500 hover:text-slate-800 transition text-[11px]';
         }
       });
-      renderChartPeriodInputs();
       renderStatsChart();
     }
 
@@ -1475,7 +1548,7 @@
       renderStatsChart();
     }
 
-    // 3. 통계 탭: 정밀 그래프 렌더링 (잔액 계산과 흐름 필터 분리)
+    // 3. 통계 탭: 정밀 그래프 렌더링
     function renderStatsChart() {
       const canvas = document.getElementById('financeChart');
       if (!canvas) return;
@@ -1483,36 +1556,29 @@
       updateFilterUI();
 
       const period = state.chartPeriod;
-      const selectedAssets = state.chartFilters.assets; // 비어 있으면 전체 자산 대상
+      const range = state.chartDateRange;
+      const selectedAssets = state.chartFilters.assets;
+
+      // 소제목: 괄호 없이 날짜 기간만 깔끔하게 출력
+      document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end}`;
 
       const validAssets = state.assets.filter(a => state.assetCategories.includes(a.type));
       const targetAssets = (selectedAssets.length > 0)
         ? validAssets.filter(a => selectedAssets.includes(a.name))
         : validAssets;
 
-      // 자산 이름 표시 텍스트
-      let assetLabel = '전체 자산';
-      if (selectedAssets.length === 1) {
-        assetLabel = selectedAssets[0];
-      } else if (selectedAssets.length > 1) {
-        assetLabel = `${selectedAssets[0]} 외 ${selectedAssets.length - 1}개`;
-      }
-
-      // 1) 대상 자산의 초기 잔액 합
       const initialAssetSum = targetAssets.reduce((sum, a) => sum + Number(a.initialBalance || 0), 0);
 
-      // 2) 실제 통장 잔액 변동 계산 함수 (필터 조건과 무관하게 해당 자산들의 실제 잔고 변동만 추적)
+      // 실제 통장 잔고 변동 계산 함수
       const getTrueBalanceDelta = (t) => {
         const amt = Number(t.amount);
         const targetNames = targetAssets.map(a => a.name);
 
         if (targetNames.length === validAssets.length) {
-          // 전체 자산일 때: 외부 수입(+), 외부 지출(-), 내부 이체(0)
           if (t.type === 'income') return amt;
           if (t.type === 'expense') return -amt;
           return 0;
         } else {
-          // 특정 선택 자산들일 때: 해당 자산군으로 들어오면(+), 나가면(-)
           let delta = 0;
           const fromIn = t.fromAsset && targetNames.includes(t.fromAsset);
           const toIn = t.toAsset && targetNames.includes(t.toAsset);
@@ -1535,10 +1601,6 @@
       let balanceData = [];
 
       if (period === 'daily') {
-        const range = state.chartDateRange.daily;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${assetLabel})`;
-
-        // 시작일 이전까지의 실제 잔고 누적
         let runningBal = initialAssetSum;
         sortedAllTxs.forEach(t => {
           if (t.date < range.start) {
@@ -1559,7 +1621,6 @@
 
           const dayAllTxs = sortedAllTxs.filter(t => t.date === dayStr);
 
-          // 1) 수입/지출 막대는 필터 적용
           let dayInc = 0;
           let dayExp = 0;
           dayAllTxs.forEach(t => {
@@ -1570,7 +1631,6 @@
             }
           });
 
-          // 2) 잔액 선은 실제 통장 잔고 변동 누적
           dayAllTxs.forEach(t => {
             runningBal += getTrueBalanceDelta(t);
           });
@@ -1583,18 +1643,18 @@
         }
 
       } else if (period === 'monthly') {
-        const range = state.chartDateRange.monthly;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start} ~ ${range.end} (${assetLabel})`;
+        const startYM = range.start.slice(0, 7);
+        const endYM = range.end.slice(0, 7);
 
         let runningBal = initialAssetSum;
         sortedAllTxs.forEach(t => {
-          if (t.date < `${range.start}-01`) {
+          if (t.date < `${startYM}-01`) {
             runningBal += getTrueBalanceDelta(t);
           }
         });
 
-        const [sy, sm] = range.start.split('-').map(Number);
-        const [ey, em] = range.end.split('-').map(Number);
+        const [sy, sm] = startYM.split('-').map(Number);
+        const [ey, em] = endYM.split('-').map(Number);
 
         let cy = sy;
         let cm = sm;
@@ -1603,7 +1663,10 @@
           const mStr = `${cy}-${String(cm).padStart(2, '0')}`;
           labels.push(sy !== ey ? `${String(cy).slice(2)}.${cm}월` : `${cm}월`);
 
-          const monthAllTxs = sortedAllTxs.filter(t => t.date.startsWith(mStr));
+          // 현재 월 구간 내 거래 내역 (시작일/종료일 경계 적용)
+          const monthAllTxs = sortedAllTxs.filter(t => {
+            return t.date.startsWith(mStr) && t.date >= range.start && t.date <= range.end;
+          });
 
           let mInc = 0;
           let mExp = 0;
@@ -1631,21 +1694,23 @@
         }
 
       } else {
-        const range = state.chartDateRange.yearly;
-        document.getElementById('chartSubtitleInfo').innerText = `${range.start}년 ~ ${range.end}년 (${assetLabel})`;
+        const startY = Number(range.start.slice(0, 4));
+        const endY = Number(range.end.slice(0, 4));
 
         let runningBal = initialAssetSum;
         sortedAllTxs.forEach(t => {
-          if (t.date < `${range.start}-01-01`) {
+          if (t.date < `${startY}-01-01`) {
             runningBal += getTrueBalanceDelta(t);
           }
         });
 
-        for (let y = range.start; y <= range.end; y++) {
+        for (let y = startY; y <= endY; y++) {
           const yStr = String(y);
           labels.push(`${y}년`);
 
-          const yearAllTxs = sortedAllTxs.filter(t => t.date.startsWith(yStr));
+          const yearAllTxs = sortedAllTxs.filter(t => {
+            return t.date.startsWith(yStr) && t.date >= range.start && t.date <= range.end;
+          });
 
           let yInc = 0;
           let yExp = 0;
