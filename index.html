@@ -59,7 +59,7 @@
     <div class="flex items-center gap-1.5">
       <h1 class="text-base font-bold text-slate-900 tracking-tight">가계부</h1>
       <span id="syncStatusBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">동기화 중</span>
-      <button onclick="location.reload()" title="새로고침" class="p-1 hover:bg-slate-100 active:bg-slate-200 text-slate-600 rounded transition flex items-center justify-center">
+      <button onclick="forceRefreshApp()" title="최신 버전 새로고침" class="p-1 hover:bg-slate-100 active:bg-slate-200 text-slate-600 rounded transition flex items-center justify-center">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
@@ -338,7 +338,8 @@
           <label class="w-full py-2 px-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded text-xs font-semibold flex items-center justify-center gap-1 shadow-sm transition cursor-pointer text-center">
             <span>📤</span>
             <span>CSV 가져오기</span>
-            <input type="file" id="csvFileInput" accept=".csv" onchange="importFromCSV(event)" class="hidden">
+            <!-- iOS Safari 및 윈도우 모든 환경에서 CSV 선택이 비활성화되지 않도록 MIME 타입 확장 -->
+            <input type="file" id="csvFileInput" accept=".csv,text/csv,text/plain,application/csv,application/vnd.ms-excel" onchange="importFromCSV(event)" class="hidden">
           </label>
         </div>
       </div>
@@ -675,6 +676,13 @@
       { id: 'ast_3', name: '투자 통장', type: '투자', initialBalance: 10000000, order: 2, excludeFromNetWorth: false }
     ];
 
+    // 캐시 우회 강제 새로고침 헬퍼 함수 (아이폰 홈화면 웹앱 및 PC 브라우저 캐시 갱신)
+    function forceRefreshApp() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('v', Date.now());
+      window.location.replace(url.toString());
+    }
+
     // 한국 로컬 기준 날짜 포맷 헬퍼 함수
     function getLocalDateStr(d = new Date()) {
       const y = d.getFullYear();
@@ -760,6 +768,12 @@
     };
 
     window.addEventListener('DOMContentLoaded', () => {
+      // 강제 새로고침 후 주소창의 임시 쿼리 파라미터(?v=...) 깔끔하게 정리
+      if (window.location.search.includes('v=')) {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+
       document.getElementById('txDate').value = state.selectedDate;
       initFirebaseAuto();
       cleanupInvalidAssets();
@@ -2419,7 +2433,7 @@
       openModal('assetModal');
     }
 
-    // 복수 섹션 단일 CSV 파일 내보내기 (오늘 날짜 포함 파일명 지원)
+    // 복수 섹션 단일 CSV 파일 내보내기 (createdAt 보존 및 iOS Safari 다운로드 지연 해제 반영)
     function exportToCSV(filenamePrefix = '가계부_통합백업') {
       const parts = [];
 
@@ -2459,10 +2473,10 @@
       });
       parts.push('');
 
-      // 6) 거래 내역
+      // 6) 거래 내역 (createdAt 추가로 같은 날짜 내 정렬 순서 보존)
       parts.push('#SECTION:TRANSACTIONS');
-      parts.push('날짜,유형,금액,내용,카테고리,출금자산,입금자산,구성원,id');
-      const sortedTxs = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date));
+      parts.push('날짜,유형,금액,내용,카테고리,출금자산,입금자산,구성원,id,createdAt');
+      const sortedTxs = [...state.transactions].sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || '').localeCompare(a.createdAt || ''));
       sortedTxs.forEach(t => {
         parts.push([
           t.date || '',
@@ -2473,7 +2487,8 @@
           `"${(t.fromAsset || '').replace(/"/g, '""')}"`,
           `"${(t.toAsset || '').replace(/"/g, '""')}"`,
           `"${(t.member || '').replace(/"/g, '""')}"`,
-          t.id || ''
+          t.id || '',
+          t.createdAt || ''
         ].join(','));
       });
 
@@ -2483,8 +2498,12 @@
       const a = document.createElement('a');
       a.href = url;
       a.download = `${filenamePrefix}_${getLocalDateStr()}.csv`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // 아이폰(Safari/웹앱) 다운로드 확인 팝업 대기 시간을 위해 5초 후 메모리 해제
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
 
     // 중복 검사용 지문 생성 함수
@@ -2492,7 +2511,7 @@
       return `${(t.date || '').trim()}_${(t.type || '').trim()}_${Number(t.amount) || 0}_${(t.description || '').trim()}_${(t.category || '').trim()}_${(t.fromAsset || '').trim()}_${(t.toAsset || '').trim()}_${(t.member || '').trim()}`;
     }
 
-    // CSV 파일 분석 및 선택 모달 열기
+    // CSV 파일 읽기 및 인코딩(UTF-8 / EUC-KR) 자동 감지
     function importFromCSV(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -2500,106 +2519,104 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         const text = e.target.result;
-        const lines = text.split(/\r\n|\n/).map(l => l.trim()).filter(l => l.length > 0);
-        if (lines.length === 0) {
-          alert('가져올 내용이 비어있는 파일입니다.');
-          event.target.value = '';
+        // 윈도우 엑셀(CP949/EUC-KR) 저장 파일로 인해 한글 깨짐(\uFFFD)이 발생한 경우 EUC-KR로 자동 재시도
+        if (text.includes('\uFFFD')) {
+          const fallbackReader = new FileReader();
+          fallbackReader.onload = function(e2) {
+            processCSVText(e2.target.result, event);
+          };
+          fallbackReader.readAsText(file, 'EUC-KR');
           return;
         }
+        processCSVText(text, event);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
 
-        const hasSections = lines.some(l => l.startsWith('#SECTION:'));
-        const parsed = {
-          members: null,
-          assetCategories: null,
-          categoriesExpense: null,
-          categoriesIncome: null,
-          assets: null,
-          transactions: []
-        };
+    // CSV 텍스트 파싱 및 가져오기 모달 오픈
+    function processCSVText(text, event) {
+      const lines = text.split(/\r\n|\n/).map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) {
+        alert('가져올 내용이 비어있는 파일입니다.');
+        if (event && event.target) event.target.value = '';
+        return;
+      }
 
-        if (hasSections) {
-          let curSec = null;
-          const sectionLines = {};
+      const hasSections = lines.some(l => l.startsWith('#SECTION:'));
+      const parsed = {
+        members: null,
+        assetCategories: null,
+        categoriesExpense: null,
+        categoriesIncome: null,
+        assets: null,
+        transactions: []
+      };
 
-          lines.forEach(line => {
-            if (line.startsWith('#SECTION:')) {
-              curSec = line.replace('#SECTION:', '').trim();
-              sectionLines[curSec] = [];
-            } else if (curSec) {
-              sectionLines[curSec].push(line);
-            }
-          });
+      const baseImportTime = Date.now();
 
-          // 1) 구성원
-          if (sectionLines.MEMBERS && sectionLines.MEMBERS.length > 0) {
-            parsed.members = parseCSVLine(sectionLines.MEMBERS[0]).filter(Boolean);
-          }
-          // 2) 자산분류
-          if (sectionLines.ASSET_CATEGORIES && sectionLines.ASSET_CATEGORIES.length > 0) {
-            parsed.assetCategories = parseCSVLine(sectionLines.ASSET_CATEGORIES[0]).filter(Boolean);
-          }
-          // 3) 지출 카테고리
-          if (sectionLines.CATEGORIES_EXPENSE && sectionLines.CATEGORIES_EXPENSE.length > 0) {
-            parsed.categoriesExpense = parseCSVLine(sectionLines.CATEGORIES_EXPENSE[0]).filter(Boolean);
-          }
-          // 4) 수입 카테고리
-          if (sectionLines.CATEGORIES_INCOME && sectionLines.CATEGORIES_INCOME.length > 0) {
-            parsed.categoriesIncome = parseCSVLine(sectionLines.CATEGORIES_INCOME[0]).filter(Boolean);
-          }
-          // 5) 자산
-          if (sectionLines.ASSETS && sectionLines.ASSETS.length > 1) {
-            parsed.assets = [];
-            for (let i = 1; i < sectionLines.ASSETS.length; i++) {
-              const row = parseCSVLine(sectionLines.ASSETS[i]);
-              if (row.length < 4) continue;
-              const [id, name, type, initBal, exclude, order] = row;
-              parsed.assets.push({
-                id: id || `${generateId('ast')}_${i}`,
-                name: (name || '').trim(),
-                type: (type || '생활비').trim(),
-                initialBalance: Number(initBal) || 0,
-                excludeFromNetWorth: (exclude === 'true' || exclude === '1'),
-                order: Number(order ?? i)
-              });
-            }
-          }
-          // 6) 거래 내역
-          if (sectionLines.TRANSACTIONS && sectionLines.TRANSACTIONS.length > 1) {
-            for (let i = 1; i < sectionLines.TRANSACTIONS.length; i++) {
-              const row = parseCSVLine(sectionLines.TRANSACTIONS[i]);
-              if (row.length < 3) continue;
-              const [date, typeStr, amountStr, desc, cat, fromA, toA, memberStr, rawId] = row;
-              let type = 'expense';
-              if (typeStr === '수입' || typeStr === 'income') type = 'income';
-              else if (typeStr === '이체' || typeStr === 'transfer') type = 'transfer';
+      if (hasSections) {
+        let curSec = null;
+        const sectionLines = {};
 
-              parsed.transactions.push({
-                id: rawId || `${generateId('tx_imp')}_${i}`,
-                date: (date || '').trim(),
-                type: type,
-                amount: Number((amountStr || '0').replace(/[^0-9.-]+/g, '')) || 0,
-                description: (desc || '').trim(),
-                category: (cat || (type === 'transfer' ? '이체' : '기타')).trim(),
-                fromAsset: (fromA || '').trim(),
-                toAsset: (toA || '').trim(),
-                member: (memberStr || '공동').trim(),
-                createdAt: new Date().toISOString()
-              });
-            }
+        lines.forEach(line => {
+          if (line.startsWith('#SECTION:')) {
+            curSec = line.replace('#SECTION:', '').trim();
+            sectionLines[curSec] = [];
+          } else if (curSec) {
+            sectionLines[curSec].push(line);
           }
+        });
 
-        } else {
-          // 구버전 단일 거래내역 전용 CSV 하위 호환
-          for (let i = 1; i < lines.length; i++) {
-            const row = parseCSVLine(lines[i]);
+        // 1) 구성원
+        if (sectionLines.MEMBERS && sectionLines.MEMBERS.length > 0) {
+          parsed.members = parseCSVLine(sectionLines.MEMBERS[0]).filter(Boolean);
+        }
+        // 2) 자산분류
+        if (sectionLines.ASSET_CATEGORIES && sectionLines.ASSET_CATEGORIES.length > 0) {
+          parsed.assetCategories = parseCSVLine(sectionLines.ASSET_CATEGORIES[0]).filter(Boolean);
+        }
+        // 3) 지출 카테고리
+        if (sectionLines.CATEGORIES_EXPENSE && sectionLines.CATEGORIES_EXPENSE.length > 0) {
+          parsed.categoriesExpense = parseCSVLine(sectionLines.CATEGORIES_EXPENSE[0]).filter(Boolean);
+        }
+        // 4) 수입 카테고리
+        if (sectionLines.CATEGORIES_INCOME && sectionLines.CATEGORIES_INCOME.length > 0) {
+          parsed.categoriesIncome = parseCSVLine(sectionLines.CATEGORIES_INCOME[0]).filter(Boolean);
+        }
+        // 5) 자산
+        if (sectionLines.ASSETS && sectionLines.ASSETS.length > 1) {
+          parsed.assets = [];
+          for (let i = 1; i < sectionLines.ASSETS.length; i++) {
+            const row = parseCSVLine(sectionLines.ASSETS[i]);
+            if (row.length < 4) continue;
+            const [id, name, type, initBal, exclude, order] = row;
+            parsed.assets.push({
+              id: id || `${generateId('ast')}_${i}`,
+              name: (name || '').trim(),
+              type: (type || '생활비').trim(),
+              initialBalance: Number(initBal) || 0,
+              excludeFromNetWorth: (exclude === 'true' || exclude === '1'),
+              order: Number(order ?? i)
+            });
+          }
+        }
+        // 6) 거래 내역
+        if (sectionLines.TRANSACTIONS && sectionLines.TRANSACTIONS.length > 1) {
+          for (let i = 1; i < sectionLines.TRANSACTIONS.length; i++) {
+            const row = parseCSVLine(sectionLines.TRANSACTIONS[i]);
             if (row.length < 3) continue;
-            const [date, typeStr, amountStr, desc, cat, fromA, toA, memberStr, rawId] = row;
+            const [date, typeStr, amountStr, desc, cat, fromA, toA, memberStr, rawId, rawCreatedAt] = row;
             let type = 'expense';
             if (typeStr === '수입' || typeStr === 'income') type = 'income';
             else if (typeStr === '이체' || typeStr === 'transfer') type = 'transfer';
 
+            const trimmedId = (rawId || '').trim();
+            // createdAt이 없는 구버전 CSV도 파일 내 행 순서가 그대로 유지되도록 시간차 부여
+            const fallbackCreatedAt = new Date(baseImportTime - i * 1000).toISOString();
+
             parsed.transactions.push({
-              id: rawId || `${generateId('tx_imp')}_${i}`,
+              id: trimmedId || `${generateId('tx_imp')}_${i}`,
+              _hasExplicitId: !!trimmedId,
               date: (date || '').trim(),
               type: type,
               amount: Number((amountStr || '0').replace(/[^0-9.-]+/g, '')) || 0,
@@ -2608,42 +2625,83 @@
               fromAsset: (fromA || '').trim(),
               toAsset: (toA || '').trim(),
               member: (memberStr || '공동').trim(),
-              createdAt: new Date().toISOString()
+              createdAt: (rawCreatedAt || '').trim() || fallbackCreatedAt
             });
           }
         }
 
-        const existingSignatures = new Set(state.transactions.map(getTxSignature));
-        const newTxs = [];
-        let dupCount = 0;
+      } else {
+        // 구버전 단일 거래내역 전용 CSV 하위 호환
+        for (let i = 1; i < lines.length; i++) {
+          const row = parseCSVLine(lines[i]);
+          if (row.length < 3) continue;
+          const [date, typeStr, amountStr, desc, cat, fromA, toA, memberStr, rawId, rawCreatedAt] = row;
+          let type = 'expense';
+          if (typeStr === '수입' || typeStr === 'income') type = 'income';
+          else if (typeStr === '이체' || typeStr === 'transfer') type = 'transfer';
 
-        parsed.transactions.forEach(t => {
-          const sig = getTxSignature(t);
+          const trimmedId = (rawId || '').trim();
+          const fallbackCreatedAt = new Date(baseImportTime - i * 1000).toISOString();
+
+          parsed.transactions.push({
+            id: trimmedId || `${generateId('tx_imp')}_${i}`,
+            _hasExplicitId: !!trimmedId,
+            date: (date || '').trim(),
+            type: type,
+            amount: Number((amountStr || '0').replace(/[^0-9.-]+/g, '')) || 0,
+            description: (desc || '').trim(),
+            category: (cat || (type === 'transfer' ? '이체' : '기타')).trim(),
+            fromAsset: (fromA || '').trim(),
+            toAsset: (toA || '').trim(),
+            member: (memberStr || '공동').trim(),
+            createdAt: (rawCreatedAt || '').trim() || fallbackCreatedAt
+          });
+        }
+      }
+
+      // 기존 앱 데이터 및 파일 내 중복 검사 (고유 ID가 있는 경우 같은 날 동일 금액 결제 누락 방지)
+      const existingIds = new Set(state.transactions.map(t => t.id).filter(Boolean));
+      const existingSignatures = new Set(state.transactions.map(getTxSignature));
+      const newTxs = [];
+      let dupCount = 0;
+
+      parsed.transactions.forEach(t => {
+        const hasExplicitId = t._hasExplicitId;
+        delete t._hasExplicitId;
+
+        const sig = getTxSignature(t);
+        if (hasExplicitId) {
+          if (existingIds.has(t.id)) {
+            dupCount++;
+          } else {
+            newTxs.push(t);
+            existingIds.add(t.id);
+          }
+        } else {
           if (existingSignatures.has(sig)) {
             dupCount++;
           } else {
             newTxs.push(t);
             existingSignatures.add(sig);
           }
-        });
+        }
+      });
 
-        document.getElementById('importSummaryTx').innerText = `${parsed.transactions.length}건`;
-        document.getElementById('importSummaryNewTx').innerText = `${newTxs.length}건`;
-        document.getElementById('importSummaryDupTx').innerText = `${dupCount}건 (건너뜀 대상)`;
+      document.getElementById('importSummaryTx').innerText = `${parsed.transactions.length}건`;
+      document.getElementById('importSummaryNewTx').innerText = `${newTxs.length}건`;
+      document.getElementById('importSummaryDupTx').innerText = `${dupCount}건 (건너뜀 대상)`;
 
-        const hasAnySettings = !!(parsed.members || parsed.assetCategories || parsed.assets || parsed.categoriesExpense);
-        document.getElementById('importSummarySettings').innerText = hasAnySettings
-          ? `자산 ${parsed.assets?.length || 0}개, 분류, 카테고리 포함`
-          : '거래 내역 전용 파일';
+      const hasAnySettings = !!(parsed.members || parsed.assetCategories || parsed.assets || parsed.categoriesExpense);
+      document.getElementById('importSummarySettings').innerText = hasAnySettings
+        ? `자산 ${parsed.assets?.length || 0}개, 분류, 카테고리 포함`
+        : '거래 내역 전용 파일';
 
-        state.pendingImportData = {
-          parsed: parsed,
-          newTxs: newTxs
-        };
-
-        openModal('csvImportModal');
+      state.pendingImportData = {
+        parsed: parsed,
+        newTxs: newTxs
       };
-      reader.readAsText(file, 'UTF-8');
+
+      openModal('csvImportModal');
     }
 
     // Firestore 대용량 Batch 분할 커밋 헬퍼 (500개 제한 방지)
